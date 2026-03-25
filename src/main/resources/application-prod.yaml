@@ -1,0 +1,37 @@
+spring:
+  graphql:
+    graphiql:
+      enabled: false
+
+server:
+  shutdown: graceful
+  forward-headers-strategy: native
+
+grpc:
+  server:
+    reflection-service-enabled: false
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+management:
+  endpoint:
+    health:
+      show-details: never
+
+mcp:
+  ingest:
+    rebuild-on-startup: ${MCP_REBUILD_ON_STARTUP:false}
+  security:
+    api-key: ${MCP_API_KEY:}
+    header-name: ${MCP_API_KEY_HEADER:X-API-Key}
+  ingress:
+    enforce-https: true
+    hsts-enabled: true
+    hsts-max-age-seconds: ${MCP_HSTS_MAX_AGE_SECONDS:31536000}
+    hsts-include-sub-domains: ${MCP_HSTS_INCLUDE_SUBDOMAINS:true}
+    hsts-preload: ${MCP_HSTS_PRELOAD:true}
+    trusted-proxies: '${MCP_TRUSTED_PROXIES:10\\..*|192\\.168\\..*|172\\.(1[6-9]|2\\d|3[0-1])\\..*|127\\.0\\.0\\.1|::1}'

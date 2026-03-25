@@ -1,0 +1,9 @@
+{
+  "id": "spring-boot-csrf",
+  "title": "Enable CSRF Protection",
+  "version": "4.0.0",
+  "tags": ["security", "spring-boot"],
+  "content": "By default, Spring Security enables CSRF protection. Keep CSRF enabled for browser-based sessions and disable only for stateless APIs with explicit rationale.",
+  "source": "Spring Security Reference",
+  "sourceUrl": "https://docs.spring.io/spring-security/reference/servlet/exploits/csrf.html"
+}

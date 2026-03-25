@@ -1,0 +1,24 @@
+- id: avoid-field-injection
+  description: "Avoid @Autowired on fields; use constructor injection"
+  matchType: AST_FIELD_ANNOTATION
+  pattern: "@Autowired"
+  fix: "Convert to constructor-based injection"
+  severity: "MEDIUM"
+  target: "Field"
+  enabled: true
+- id: no-system-out
+  description: "Avoid System.out.println in application code"
+  matchType: AST_METHOD_CALL
+  pattern: "System.out.print"
+  fix: "Use a logger such as slf4j"
+  severity: "LOW"
+  target: "MethodCall"
+  enabled: true
+- id: no-thread-sleep
+  description: "Avoid Thread.sleep in request handling code"
+  matchType: AST_METHOD_CALL
+  pattern: "Thread.sleep"
+  fix: "Use scheduled execution or non-blocking patterns"
+  severity: "MEDIUM"
+  target: "MethodCall"
+  enabled: true

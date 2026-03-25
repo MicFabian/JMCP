@@ -1,0 +1,84 @@
+spring:
+  application:
+    name: java-mcp
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+  threads:
+    virtual:
+      enabled: true
+  graphql:
+    graphiql:
+      enabled: true
+  cache:
+    cache-names:
+      - searchResults
+    caffeine:
+      spec: maximumSize=1000,expireAfterWrite=5m
+
+server:
+  port: 8080
+  shutdown: graceful
+
+grpc:
+  server:
+    port: 9090
+    reflection-service-enabled: true
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+  health:
+    diskspace:
+      enabled: false
+
+mcp:
+  ingest:
+    resource-pattern: classpath:/content/docs/*.json
+    rebuild-on-startup: true
+  security:
+    api-key: ""
+    header-name: X-API-Key
+  ingress:
+    enforce-https: false
+    hsts-enabled: false
+    hsts-max-age-seconds: 31536000
+    hsts-include-sub-domains: true
+    hsts-preload: true
+    trusted-proxies: 127\.0\.0\.1|::1
+  lucene:
+    index-path: data/lucene
+  search:
+    default-limit: 10
+    max-limit: 50
+    candidate-multiplier: 3
+    rrf-k: 60
+    lexical-weight: 1.0
+    vector-weight: 0.9
+    exact-version-boost: 0.2
+    synonyms:
+      csrf:
+        - cross site request forgery
+        - xsrf
+      db:
+        - database
+      jpa:
+        - hibernate

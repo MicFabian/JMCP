@@ -1,0 +1,252 @@
+syntax = "proto3";
+
+package mcp.v1;
+
+option java_multiple_files = true;
+option java_package = "com.example.javamcp.grpc.generated";
+option java_outer_classname = "McpProto";
+
+service McpService {
+  rpc Search (SearchRequest) returns (SearchReply);
+  rpc GetMcpManifest (McpManifestRequest) returns (McpManifestReply);
+  rpc ResolveLibraryId (ResolveLibraryIdRequest) returns (ResolveLibraryIdReply);
+  rpc GetLibraryDocs (GetLibraryDocsRequest) returns (GetLibraryDocsReply);
+  rpc QueryDocs (GetLibraryDocsRequest) returns (GetLibraryDocsReply);
+  rpc Analyze (AnalyzeRequest) returns (AnalyzeReply);
+  rpc Ast (AstRequest) returns (AstReply);
+  rpc Symbols (SymbolsRequest) returns (SymbolsReply);
+  rpc ListRules (RulesRequest) returns (RulesReply);
+  rpc IndexStats (IndexStatsRequest) returns (IndexStatsReply);
+  rpc RebuildIndex (RebuildIndexRequest) returns (IndexStatsReply);
+}
+
+message SearchRequest {
+  string query = 1;
+  int32 limit = 2;
+  string version = 3;
+  repeated string tags = 4;
+  string source = 5;
+  string mode = 6;
+  bool diagnostics = 7;
+}
+
+message SearchReply {
+  string query = 1;
+  int32 count = 2;
+  repeated SearchResult results = 3;
+  SearchDiagnostics diagnostics = 4;
+}
+
+message McpManifestRequest {}
+
+message McpManifestReply {
+  string server_name = 1;
+  string version = 2;
+  string generated_at = 3;
+  repeated McpTool tools = 4;
+  repeated McpToolRule tool_rules = 5;
+  repeated McpResource resources = 6;
+  repeated McpPrompt prompts = 7;
+}
+
+message McpTool {
+  string name = 1;
+  string description = 2;
+  string input_schema_hint = 3;
+}
+
+message McpToolRule {
+  string id = 1;
+  string description = 2;
+  repeated string trigger_patterns = 3;
+  string tool_name = 4;
+  int32 priority = 5;
+}
+
+message McpResource {
+  string resource_id = 1;
+  string uri = 2;
+  string title = 3;
+  string version = 4;
+  repeated string tags = 5;
+  string source = 6;
+  string source_url = 7;
+}
+
+message McpPrompt {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string template = 4;
+}
+
+message ResolveLibraryIdRequest {
+  string query = 1;
+  string library_name = 2;
+  string topic = 3;
+  int32 limit = 4;
+}
+
+message ResolveLibraryIdReply {
+  string query = 1;
+  int32 count = 2;
+  repeated LibraryCandidate libraries = 3;
+}
+
+message LibraryCandidate {
+  string library_id = 1;
+  string name = 2;
+  string summary = 3;
+  int32 document_count = 4;
+  repeated string versions = 5;
+  repeated string sources = 6;
+  float score = 7;
+}
+
+message GetLibraryDocsRequest {
+  string library_id = 1;
+  string topic = 2;
+  int32 tokens = 3;
+  int32 limit = 4;
+  string version = 5;
+  string mode = 6;
+  string query = 7;
+  optional float alpha = 8;
+}
+
+message GetLibraryDocsReply {
+  string library_id = 1;
+  string library_name = 2;
+  string topic = 3;
+  int32 count = 4;
+  int32 approx_tokens = 5;
+  string context = 6;
+  repeated LibraryDoc documents = 7;
+  string strategy = 8;
+  float alpha = 9;
+}
+
+message LibraryDoc {
+  string id = 1;
+  string title = 2;
+  string excerpt = 3;
+  string source = 4;
+  string source_url = 5;
+  string version = 6;
+  float score = 7;
+  float retrieval_score = 8;
+  float rerank_score = 9;
+  repeated string matched_terms = 10;
+}
+
+message SearchResult {
+  string id = 1;
+  string title = 2;
+  string snippet = 3;
+  string source = 4;
+  string source_url = 5;
+  string version = 6;
+  float score = 7;
+}
+
+message SearchDiagnostics {
+  string mode = 1;
+  string expanded_query = 2;
+  int32 lexical_candidates = 3;
+  int32 vector_candidates = 4;
+  int32 elapsed_millis = 5;
+}
+
+message AnalyzeRequest {
+  string file_name = 1;
+  string code = 2;
+}
+
+message AnalyzeReply {
+  string file = 1;
+  int32 issue_count = 2;
+  repeated RuleIssue issues = 3;
+}
+
+message RuleIssue {
+  string rule = 1;
+  int32 line = 2;
+  string severity = 3;
+  string message = 4;
+  string suggestion = 5;
+}
+
+message AstRequest {
+  string code = 1;
+}
+
+message AstReply {
+  int32 class_count = 1;
+  repeated AstClass classes = 2;
+}
+
+message AstClass {
+  string name = 1;
+  string package_name = 2;
+  repeated AstMethod methods = 3;
+}
+
+message AstMethod {
+  string name = 1;
+  string signature = 2;
+  string return_type = 3;
+  string javadoc = 4;
+}
+
+message SymbolsRequest {
+  string code = 1;
+}
+
+message SymbolsReply {
+  int32 node_count = 1;
+  int32 edge_count = 2;
+  repeated SymbolNode nodes = 3;
+  repeated SymbolEdge edges = 4;
+}
+
+message SymbolNode {
+  string id = 1;
+  string type = 2;
+  string name = 3;
+  string qualified_name = 4;
+}
+
+message SymbolEdge {
+  string from = 1;
+  string to = 2;
+  string relation = 3;
+}
+
+message RulesRequest {}
+
+message RulesReply {
+  repeated RuleDefinition rules = 1;
+}
+
+message RuleDefinition {
+  string id = 1;
+  string description = 2;
+  string match_type = 3;
+  string pattern = 4;
+  string fix = 5;
+  string severity = 6;
+  string target = 7;
+  bool enabled = 8;
+}
+
+message IndexStatsRequest {}
+
+message RebuildIndexRequest {}
+
+message IndexStatsReply {
+  int32 document_count = 1;
+  repeated string versions = 2;
+  repeated string tags = 3;
+  repeated string sources = 4;
+  string last_indexed_at = 5;
+}

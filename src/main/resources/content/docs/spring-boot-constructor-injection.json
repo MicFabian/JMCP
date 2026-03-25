@@ -1,0 +1,9 @@
+{
+  "id": "spring-constructor-injection",
+  "title": "Use Constructor Injection",
+  "version": "4.0.0",
+  "tags": ["spring-core", "best-practice"],
+  "content": "Constructor injection keeps beans immutable and easy to test. Prefer final dependencies and avoid field injection with @Autowired on members.",
+  "source": "Spring Framework Reference",
+  "sourceUrl": "https://docs.spring.io/spring-framework/reference/core/beans/dependencies/factory-collaborators.html"
+}

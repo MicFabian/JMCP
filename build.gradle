@@ -1,0 +1,90 @@
+plugins {
+    id 'java'
+    id 'groovy'
+    id 'org.springframework.boot' version '4.0.0'
+    id 'io.spring.dependency-management' version '1.1.7'
+    id 'com.google.protobuf' version '0.9.6'
+}
+
+group = 'com.example'
+version = '0.1.0-SNAPSHOT'
+description = 'Java-only MCP MVP with Spring Boot, Lucene and JavaParser'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+ext {
+    luceneVersion = '9.12.0'
+    javaParserVersion = '3.26.2'
+    spockVersion = '2.4-groovy-5.0'
+    grpcVersion = '1.68.1'
+    protobufVersion = '3.25.5'
+    mcpSdkVersion = '1.0.0'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-graphql'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'io.micrometer:micrometer-registry-prometheus'
+    implementation 'org.springframework.boot:spring-boot-starter-cache'
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.2'
+    implementation 'com.github.ben-manes.caffeine:caffeine'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation "org.apache.lucene:lucene-core:${luceneVersion}"
+    implementation "org.apache.lucene:lucene-analysis-common:${luceneVersion}"
+    implementation "org.apache.lucene:lucene-queryparser:${luceneVersion}"
+    implementation "com.github.javaparser:javaparser-core:${javaParserVersion}"
+    implementation 'tools.jackson.dataformat:jackson-dataformat-yaml'
+    implementation "io.grpc:grpc-stub:${grpcVersion}"
+    implementation "io.grpc:grpc-protobuf:${grpcVersion}"
+    implementation "io.grpc:grpc-netty-shaded:${grpcVersion}"
+    implementation "io.grpc:grpc-services:${grpcVersion}"
+    implementation "io.modelcontextprotocol.sdk:mcp-core:${mcpSdkVersion}"
+    implementation "io.modelcontextprotocol.sdk:mcp-json-jackson3:${mcpSdkVersion}"
+    implementation 'net.devh:grpc-server-spring-boot-starter:3.1.0.RELEASE'
+    compileOnly 'javax.annotation:javax.annotation-api:1.3.2'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation "org.spockframework:spock-core:${spockVersion}"
+    testImplementation "org.spockframework:spock-spring:${spockVersion}"
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+    jvmArgs '--enable-native-access=ALL-UNNAMED'
+}
+
+tasks.named('bootRun') {
+    jvmArgs '--enable-native-access=ALL-UNNAMED'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs += ['-Xlint:deprecation']
+}
+
+protobuf {
+    protoc {
+        artifact = "com.google.protobuf:protoc:${protobufVersion}"
+    }
+    plugins {
+        grpc {
+            artifact = "io.grpc:protoc-gen-grpc-java:${grpcVersion}"
+        }
+    }
+    generateProtoTasks {
+        all().configureEach { task ->
+            task.plugins {
+                grpc {}
+            }
+        }
+    }
+}

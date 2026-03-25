@@ -1,0 +1,7 @@
+.git
+.idea
+.gradle
+.gradle-local
+build
+.DS_Store
+data

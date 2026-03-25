@@ -1,0 +1,20 @@
+classes:
+  - Document
+  - CodeSymbol
+  - SymbolNode
+  - SymbolEdge
+  - RuleIssue
+  - ConfigProperty
+relationships:
+  - name: relatedToVersion
+    from: Document
+    to: ConfigProperty
+  - name: declares
+    from: CodeSymbol
+    to: CodeSymbol
+  - name: calls
+    from: SymbolNode
+    to: SymbolNode
+  - name: violatedBy
+    from: RuleIssue
+    to: CodeSymbol

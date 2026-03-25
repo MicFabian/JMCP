@@ -1,0 +1,246 @@
+enum SearchMode {
+  HYBRID
+  LEXICAL
+  VECTOR
+}
+
+enum RuleMatchType {
+  AST_METHOD_CALL
+  AST_FIELD_ANNOTATION
+  CONTAINS
+  REGEX
+}
+
+type Query {
+  search(
+    q: String
+    limit: Int
+    version: String
+    tags: [String!]
+    source: String
+    mode: SearchMode
+    diagnostics: Boolean
+  ): SearchResponse!
+  resolveLibraryId(
+    query: String
+    libraryName: String
+    topic: String
+    limit: Int
+  ): ResolveLibraryResponse!
+  queryDocs(
+    libraryId: String!
+    query: String
+    tokens: Int
+    limit: Int
+    version: String
+    mode: SearchMode
+    alpha: Float
+  ): LibraryDocsResponse!
+  getLibraryDocs(
+    libraryId: String!
+    topic: String
+    tokens: Int
+    limit: Int
+    version: String
+    mode: SearchMode
+    alpha: Float
+  ): LibraryDocsResponse!
+  autoRules: [ToolInvocationRule!]!
+  mcpTools: [ToolDescriptor!]!
+  mcpManifest: McpManifest!
+  mcpResources: [McpResourceDescriptor!]!
+  mcpResource(resourceId: String!): McpResourceResponse!
+  prompts: [PromptTemplate!]!
+  rules: [RuleDefinition!]!
+  indexStats: IndexStatsResponse!
+}
+
+type Mutation {
+  analyze(fileName: String, code: String!): AnalyzeResponse!
+  ast(code: String!): AstResponse!
+  symbols(code: String!): SymbolGraphResponse!
+  rebuildIndex: IndexStatsResponse!
+}
+
+type SearchResponse {
+  query: String
+  count: Int!
+  results: [SearchResult!]!
+  diagnostics: SearchDiagnostics
+}
+
+type SearchResult {
+  id: String
+  title: String
+  snippet: String
+  source: String
+  sourceUrl: String
+  version: String
+  score: Float!
+}
+
+type SearchDiagnostics {
+  mode: String
+  expandedQuery: String
+  lexicalCandidates: Int!
+  vectorCandidates: Int!
+  elapsedMillis: Int!
+}
+
+type ResolveLibraryResponse {
+  query: String
+  count: Int!
+  libraries: [LibraryCandidate!]!
+}
+
+type LibraryCandidate {
+  libraryId: String
+  name: String
+  summary: String
+  documentCount: Int!
+  versions: [String!]!
+  sources: [String!]!
+  score: Float!
+}
+
+type LibraryDocsResponse {
+  libraryId: String
+  libraryName: String
+  topic: String
+  strategy: String
+  alpha: Float!
+  count: Int!
+  approxTokens: Int!
+  context: String
+  documents: [LibraryDoc!]!
+}
+
+type LibraryDoc {
+  id: String
+  title: String
+  excerpt: String
+  source: String
+  sourceUrl: String
+  version: String
+  score: Float!
+  retrievalScore: Float!
+  rerankScore: Float!
+  matchedTerms: [String!]!
+}
+
+type ToolInvocationRule {
+  id: String
+  description: String
+  triggerPatterns: [String!]!
+  toolName: String
+  priority: Int!
+}
+
+type ToolDescriptor {
+  name: String
+  description: String
+  inputSchemaHint: String
+}
+
+type McpManifest {
+  serverName: String
+  version: String
+  generatedAt: String
+  tools: [ToolDescriptor!]!
+  toolRules: [ToolInvocationRule!]!
+  resources: [McpResourceDescriptor!]!
+  prompts: [PromptTemplate!]!
+}
+
+type McpResourceDescriptor {
+  resourceId: String
+  uri: String
+  title: String
+  version: String
+  tags: [String!]!
+  source: String
+  sourceUrl: String
+}
+
+type McpResourceResponse {
+  resource: McpResourceDescriptor
+  content: String
+}
+
+type PromptTemplate {
+  id: String
+  name: String
+  description: String
+  template: String
+}
+
+type RuleDefinition {
+  id: String
+  description: String
+  matchType: RuleMatchType
+  pattern: String
+  fix: String
+  severity: String
+  target: String
+  enabled: Boolean
+}
+
+type AnalyzeResponse {
+  file: String
+  issueCount: Int!
+  issues: [RuleIssue!]!
+}
+
+type RuleIssue {
+  rule: String
+  line: Int!
+  severity: String
+  message: String
+  suggestion: String
+}
+
+type AstResponse {
+  classCount: Int!
+  classes: [AstClass!]!
+}
+
+type AstClass {
+  name: String
+  packageName: String
+  methods: [AstMethod!]!
+}
+
+type AstMethod {
+  name: String
+  signature: String
+  returnType: String
+  javadoc: String
+}
+
+type SymbolGraphResponse {
+  nodeCount: Int!
+  edgeCount: Int!
+  nodes: [SymbolNode!]!
+  edges: [SymbolEdge!]!
+}
+
+type SymbolNode {
+  id: String
+  type: String
+  name: String
+  qualifiedName: String
+}
+
+type SymbolEdge {
+  from: String
+  to: String
+  relation: String
+}
+
+type IndexStatsResponse {
+  documentCount: Int!
+  versions: [String!]!
+  tags: [String!]!
+  sources: [String!]!
+  lastIndexedAt: String
+}

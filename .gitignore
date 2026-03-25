@@ -1,0 +1,8 @@
+.m2/
+.gradle/
+.gradle-local/
+build/
+data/
+.idea/
+*.iml
+.DS_Store

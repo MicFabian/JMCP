@@ -1,0 +1,9 @@
+{
+  "id": "java-25-virtual-threads",
+  "title": "Virtual Threads for Concurrent MCP Requests",
+  "version": "25",
+  "tags": ["java", "loom", "concurrency"],
+  "content": "Virtual threads allow high request concurrency with lower platform-thread overhead. They are suited for I/O bound workloads such as parallel documentation retrieval and analysis tasks.",
+  "source": "OpenJDK JEP",
+  "sourceUrl": "https://openjdk.org/jeps/444"
+}

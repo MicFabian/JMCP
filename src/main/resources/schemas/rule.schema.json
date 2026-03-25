@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/mcp/rule.schema.json",
+  "title": "MCP Rule",
+  "type": "object",
+  "required": ["id", "description", "matchType", "pattern", "fix", "severity"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "description": {"type": "string", "minLength": 1},
+    "matchType": {"type": "string", "enum": ["AST_METHOD_CALL", "AST_FIELD_ANNOTATION", "CONTAINS", "REGEX"]},
+    "pattern": {"type": "string", "minLength": 1},
+    "fix": {"type": "string", "minLength": 1},
+    "severity": {"type": "string", "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]},
+    "target": {"type": "string"},
+    "enabled": {"type": "boolean"}
+  },
+  "additionalProperties": false
+}

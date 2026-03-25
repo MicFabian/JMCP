@@ -23,7 +23,7 @@ public class IndexBootstrapRunner implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        if (!ingestionProperties.rebuildOnStartup()) {
+        if (!ingestionProperties.isRebuildOnStartup()) {
             log.info("Skipping startup index rebuild because mcp.ingest.rebuild-on-startup=false");
             return;
         }

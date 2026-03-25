@@ -1,6 +1,7 @@
 package com.example.javamcp.api;
 
 import com.example.javamcp.model.IndexStatsResponse;
+import com.example.javamcp.model.IngestionSourceStatus;
 import com.example.javamcp.search.IndexLifecycleService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -11,6 +12,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/index")
@@ -53,5 +56,21 @@ public class IndexController {
     )
     public IndexStatsResponse rebuild() {
         return indexLifecycleService.rebuildIndex();
+    }
+
+    @GetMapping("/sources")
+    @Operation(
+            summary = "List ingestion source statuses",
+            responses = @ApiResponse(
+                    responseCode = "200",
+                    description = "Source statuses listed",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = "[{\"sourceId\":\"classpath-docs\",\"sourceType\":\"classpath\",\"sourceUrl\":\"classpath:/content/docs/*.json\",\"format\":\"JSON\",\"enabled\":true,\"loadedDocuments\":3,\"lastLoadedAt\":\"2026-03-25T10:30:00Z\",\"lastError\":null}]")
+                    )
+            )
+    )
+    public List<IngestionSourceStatus> sources() {
+        return indexLifecycleService.sourceStatuses();
     }
 }

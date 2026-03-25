@@ -54,6 +54,12 @@ mcp:
   ingest:
     resource-pattern: classpath:/content/docs/*.json
     rebuild-on-startup: true
+    include-classpath: true
+    schedule:
+      enabled: false
+      fixed-delay-ms: 21600000
+      initial-delay-ms: 30000
+    remote-sources: []
   security:
     api-key: ""
     header-name: X-API-Key

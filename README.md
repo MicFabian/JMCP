@@ -5,6 +5,8 @@ Java-only Machine-Consumable Knowledge Platform (MCP) MVP for agent workflows:
 - Spring Boot API (`/api/search`, `/api/ast`, `/api/analyze`, `/api/symbols`, `/api/rules`, `/api/index/*`)
 - Context7-inspired tool APIs (`/api/tools/resolve-library-id`, `/api/tools/get-library-docs`)
 - Query-first tool API (`/api/tools/query-docs`) with rerank + dedup + score diagnostics
+- Multi-source ingestion: classpath JSON + remote HTTP sources (JSON/HTML/Markdown/Text)
+- Scheduled background reindexing (`mcp.ingest.schedule.*`)
 - MCP discovery APIs (`/api/mcp/manifest`, `/api/mcp/tools`, `/api/mcp/resources`, `/api/mcp/prompts`, `/api/mcp/tool-rules`)
 - GraphQL API (`/graphql`) for search/analyze/ast/symbols/index operations
 - gRPC API on port `9090` (`mcp.v1.McpService`)
@@ -18,6 +20,7 @@ Java-only Machine-Consumable Knowledge Platform (MCP) MVP for agent workflows:
 - Gradle build + configuration cache enabled via `gradle.properties`
 - Optional API-key auth (`X-API-Key`) with bearer-token fallback (`Authorization: Bearer ...`)
 - Docker + Kubernetes manifests
+- CI workflows for deploy and nightly reindex
 
 ## Architecture
 
@@ -46,15 +49,16 @@ flowchart LR
 5. `GET /api/rules`
 6. `GET /api/index/stats`
 7. `POST /api/index/rebuild`
-8. `GET /api/tools/resolve-library-id?query=spring+security+csrf&limit=5`
-9. `GET /api/tools/query-docs?libraryId=/spring-projects/spring-security&query=csrf&tokens=5000&alpha=0.65`
-10. `GET /api/mcp/tools`
-11. `GET /api/mcp/manifest`
-12. `GET /api/mcp/resources`
-13. `GET /api/mcp/prompts`
-14. `POST /graphql`
-15. `gRPC mcp.v1.McpService` on `localhost:9090`
-16. `GET /actuator/prometheus`
+8. `GET /api/index/sources`
+9. `GET /api/tools/resolve-library-id?query=spring+security+csrf&limit=5`
+10. `GET /api/tools/query-docs?libraryId=/spring-projects/spring-security&query=csrf&tokens=5000&alpha=0.65`
+11. `GET /api/mcp/tools`
+12. `GET /api/mcp/manifest`
+13. `GET /api/mcp/resources`
+14. `GET /api/mcp/prompts`
+15. `POST /graphql`
+16. `gRPC mcp.v1.McpService` on `localhost:9090`
+17. `GET /actuator/prometheus`
 
 ### Example: `/api/ast`
 
@@ -156,6 +160,7 @@ java -cp build/classes/java/main:build/resources/main com.example.javamcp.grpc.M
 ./scripts/rest/prometheus.sh
 ./scripts/rest/mcp-manifest.sh
 ./scripts/rest/mcp-catalog.sh
+./scripts/rest/index-sources.sh
 ./scripts/mcp/setup-codex-mcp.sh
 ./scripts/mcp/smoke-native-mcp.sh
 ```
@@ -248,6 +253,31 @@ docker builder prune -f
 - HTTPS redirect enforcement (`mcp.ingress.enforce-https=true`)
 - HSTS enabled (`mcp.ingress.hsts-enabled=true`)
 - Trusted proxy matching for forwarded headers (`mcp.ingress.trusted-proxies`)
+- Optional scheduled reindex (`mcp.ingest.schedule.enabled=true`)
+- Optional remote source ingestion (`mcp.ingest.remote-sources`)
+
+Remote ingestion example (in `application.yaml` or profile override):
+
+```yaml
+mcp:
+  ingest:
+    remote-sources:
+      - id: spring-security-reference
+        url: https://docs.spring.io/spring-security/reference/servlet/exploits/csrf.html
+        format: html
+        source-name: Spring Security Reference
+        source-tag: spring-security
+        version: 6.4
+        enabled: true
+        fail-on-error: false
+      - id: jep-444
+        url: https://openjdk.org/jeps/444
+        format: html
+        source-name: OpenJDK JEP
+        source-tag: java
+        version: 25
+        enabled: true
+```
 
 Run with Docker:
 
@@ -458,7 +488,8 @@ Pipeline behavior:
 - Connects to your cluster using `KUBE_CONFIG`.
 - Ensures namespace, GHCR image pull secret, app secret, and TLS secret.
 - Applies `k8s/deployment.yaml`, `k8s/service.yaml`, `k8s/ingress.yaml`.
-- Updates deployment image to `ghcr.io/micfabian/jmcp:sha-<commit>` and waits for rollout.
+- Deploys with image `ghcr.io/micfabian/jmcp:sha-<commit>` and waits for rollout.
+- Includes a separate nightly workflow (`.github/workflows/nightly-reindex.yml`) to call `/api/index/rebuild` on the live service.
 
 Required GitHub repository secrets:
 - `KUBE_CONFIG` (full kubeconfig content)
@@ -469,6 +500,7 @@ Required GitHub repository secrets:
 
 Recommended GitHub repository variables:
 - `GHCR_PULL_USERNAME` (defaults to `micfabian` if unset)
+- `JMCP_BASE_URL` (required for nightly reindex workflow, e.g. `http://94.16.111.94:30739`)
 
 Set secrets and variables with GitHub CLI:
 
@@ -486,6 +518,7 @@ gh secret set TLS_KEY --repo "$REPO" < /absolute/path/privkey.pem
 
 # recommended variables
 gh variable set GHCR_PULL_USERNAME --repo "$REPO" --body "micfabian"
+gh variable set JMCP_BASE_URL --repo "$REPO" --body "http://94.16.111.94:30739"
 ```
 
 Quick trigger:

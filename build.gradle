@@ -43,6 +43,9 @@ dependencies {
     implementation "org.apache.lucene:lucene-analysis-common:${luceneVersion}"
     implementation "org.apache.lucene:lucene-queryparser:${luceneVersion}"
     implementation "com.github.javaparser:javaparser-core:${javaParserVersion}"
+    implementation 'org.jsoup:jsoup:1.18.3'
+    implementation 'org.commonmark:commonmark:0.24.0'
+    implementation 'org.commonmark:commonmark-ext-gfm-tables:0.24.0'
     implementation 'tools.jackson.dataformat:jackson-dataformat-yaml'
     implementation "io.grpc:grpc-stub:${grpcVersion}"
     implementation "io.grpc:grpc-protobuf:${grpcVersion}"

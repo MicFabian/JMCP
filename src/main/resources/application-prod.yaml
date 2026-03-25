@@ -25,6 +25,11 @@ management:
 mcp:
   ingest:
     rebuild-on-startup: ${MCP_REBUILD_ON_STARTUP:false}
+    include-classpath: ${MCP_INGEST_INCLUDE_CLASSPATH:true}
+    schedule:
+      enabled: ${MCP_INGEST_SCHEDULE_ENABLED:false}
+      fixed-delay-ms: ${MCP_INGEST_SCHEDULE_FIXED_DELAY_MS:21600000}
+      initial-delay-ms: ${MCP_INGEST_SCHEDULE_INITIAL_DELAY_MS:30000}
   security:
     api-key: ${MCP_API_KEY:}
     header-name: ${MCP_API_KEY_HEADER:X-API-Key}

@@ -7,6 +7,7 @@ import com.example.javamcp.analysis.AstService;
 import com.example.javamcp.model.AnalyzeResponse;
 import com.example.javamcp.model.AstResponse;
 import com.example.javamcp.model.IndexStatsResponse;
+import com.example.javamcp.model.IngestionSourceStatus;
 import com.example.javamcp.model.McpResourceDescriptor;
 import com.example.javamcp.model.McpManifest;
 import com.example.javamcp.model.McpResourceResponse;
@@ -85,6 +86,11 @@ public class McpGraphQlController {
     @QueryMapping
     public IndexStatsResponse indexStats() {
         return indexLifecycleService.currentStats();
+    }
+
+    @QueryMapping
+    public List<IngestionSourceStatus> ingestionSources() {
+        return indexLifecycleService.sourceStatuses();
     }
 
     @QueryMapping

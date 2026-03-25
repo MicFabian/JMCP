@@ -1,6 +1,7 @@
 package com.example.javamcp.ingest;
 
 import com.example.javamcp.model.IngestedDocument;
+import com.example.javamcp.model.IngestionSourceStatus;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -17,10 +18,16 @@ public class IngestionService {
     private static final Pattern WHITESPACE = Pattern.compile("\\s+");
 
     private final ResourceDocumentLoader resourceDocumentLoader;
+    private final RemoteDocumentLoader remoteDocumentLoader;
+    private final IngestionProperties ingestionProperties;
     private final AtomicReference<List<IngestedDocument>> cache = new AtomicReference<>();
 
-    public IngestionService(ResourceDocumentLoader resourceDocumentLoader) {
+    public IngestionService(ResourceDocumentLoader resourceDocumentLoader,
+                            RemoteDocumentLoader remoteDocumentLoader,
+                            IngestionProperties ingestionProperties) {
         this.resourceDocumentLoader = resourceDocumentLoader;
+        this.remoteDocumentLoader = remoteDocumentLoader;
+        this.ingestionProperties = ingestionProperties;
     }
 
     public List<IngestedDocument> loadNormalizedDocuments() {
@@ -32,7 +39,9 @@ public class IngestionService {
     }
 
     public synchronized List<IngestedDocument> reloadNormalizedDocuments() {
-        List<IngestedDocument> loaded = resourceDocumentLoader.loadDocuments();
+        List<IngestedDocument> loaded = new ArrayList<>();
+        loaded.addAll(resourceDocumentLoader.loadClasspathDocuments());
+        loaded.addAll(remoteDocumentLoader.loadRemoteDocuments(ingestionProperties.getRemoteSources()));
         Map<String, IngestedDocument> uniqueById = new LinkedHashMap<>();
         for (IngestedDocument doc : loaded) {
             IngestedDocument normalized = normalize(doc);
@@ -47,6 +56,13 @@ public class IngestionService {
 
     public synchronized void invalidateCache() {
         cache.set(null);
+    }
+
+    public List<IngestionSourceStatus> sourceStatuses() {
+        List<IngestionSourceStatus> statuses = new ArrayList<>();
+        statuses.add(resourceDocumentLoader.classpathStatus());
+        statuses.addAll(remoteDocumentLoader.currentStatuses(ingestionProperties.getRemoteSources()));
+        return List.copyOf(statuses);
     }
 
     private IngestedDocument normalize(IngestedDocument doc) {

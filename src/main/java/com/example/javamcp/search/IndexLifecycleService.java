@@ -3,6 +3,7 @@ package com.example.javamcp.search;
 import com.example.javamcp.ingest.IngestionService;
 import com.example.javamcp.model.IndexStatsResponse;
 import com.example.javamcp.model.IngestedDocument;
+import com.example.javamcp.model.IngestionSourceStatus;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -40,6 +41,10 @@ public class IndexLifecycleService {
 
         List<IngestedDocument> documents = ingestionService.loadNormalizedDocuments();
         return toStats(documents, null);
+    }
+
+    public List<IngestionSourceStatus> sourceStatuses() {
+        return ingestionService.sourceStatuses();
     }
 
     private IndexStatsResponse toStats(List<IngestedDocument> documents, String lastIndexedAt) {

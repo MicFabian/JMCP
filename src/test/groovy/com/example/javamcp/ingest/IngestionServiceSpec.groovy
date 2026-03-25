@@ -8,9 +8,13 @@ class IngestionServiceSpec extends Specification {
     def 'should cache normalized documents between reads'() {
         given:
         def loader = Mock(ResourceDocumentLoader)
-        def service = new IngestionService(loader)
+        def remoteLoader = Stub(RemoteDocumentLoader) {
+            loadRemoteDocuments(_) >> []
+        }
+        def properties = new IngestionProperties()
+        def service = new IngestionService(loader, remoteLoader, properties)
 
-        1 * loader.loadDocuments() >> [
+        1 * loader.loadClasspathDocuments() >> [
                 new IngestedDocument(' doc-1 ', ' Title ', '4.0.0', [' spring ', 'spring', 'security'], 'Body   text', ' Source ', 'https://example.com/a ')
         ]
 
@@ -28,12 +32,16 @@ class IngestionServiceSpec extends Specification {
     def 'should reload documents after cache invalidation'() {
         given:
         def loader = Mock(ResourceDocumentLoader)
-        def service = new IngestionService(loader)
+        def remoteLoader = Stub(RemoteDocumentLoader) {
+            loadRemoteDocuments(_) >> []
+        }
+        def properties = new IngestionProperties()
+        def service = new IngestionService(loader, remoteLoader, properties)
 
-        1 * loader.loadDocuments() >> [
+        1 * loader.loadClasspathDocuments() >> [
                 new IngestedDocument('doc-1', 'Title 1', '4.0.0', ['spring'], 'Body 1', 'Source', 'https://example.com/a')
         ]
-        1 * loader.loadDocuments() >> [
+        1 * loader.loadClasspathDocuments() >> [
                 new IngestedDocument('doc-2', 'Title 2', '4.0.0', ['security'], 'Body 2', 'Source', 'https://example.com/b')
         ]
 

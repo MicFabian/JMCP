@@ -1,0 +1,48 @@
+name: Nightly JMCP Reindex
+
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+jobs:
+  reindex:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Validate required configuration
+        env:
+          JMCP_BASE_URL: ${{ vars.JMCP_BASE_URL }}
+          MCP_API_KEY: ${{ secrets.MCP_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${JMCP_BASE_URL}" ]; then
+            echo "Missing repository variable: JMCP_BASE_URL"
+            exit 1
+          fi
+          if [ -z "${MCP_API_KEY}" ]; then
+            echo "Missing repository secret: MCP_API_KEY"
+            exit 1
+          fi
+          echo "Target: ${JMCP_BASE_URL}"
+
+      - name: Health check
+        env:
+          JMCP_BASE_URL: ${{ vars.JMCP_BASE_URL }}
+        run: |
+          set -euo pipefail
+          curl -fsS "${JMCP_BASE_URL}/actuator/health" >/tmp/health.json
+          cat /tmp/health.json
+
+      - name: Trigger reindex
+        env:
+          JMCP_BASE_URL: ${{ vars.JMCP_BASE_URL }}
+          MCP_API_KEY: ${{ secrets.MCP_API_KEY }}
+        run: |
+          set -euo pipefail
+          curl -fsS \
+            -H "X-API-Key: ${MCP_API_KEY}" \
+            -X POST "${JMCP_BASE_URL}/api/index/rebuild" >/tmp/reindex.json
+          cat /tmp/reindex.json

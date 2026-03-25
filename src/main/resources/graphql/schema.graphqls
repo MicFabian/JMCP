@@ -53,6 +53,7 @@ type Query {
   prompts: [PromptTemplate!]!
   rules: [RuleDefinition!]!
   indexStats: IndexStatsResponse!
+  ingestionSources: [IngestionSourceStatus!]!
 }
 
 type Mutation {
@@ -243,4 +244,15 @@ type IndexStatsResponse {
   tags: [String!]!
   sources: [String!]!
   lastIndexedAt: String
+}
+
+type IngestionSourceStatus {
+  sourceId: String
+  sourceType: String
+  sourceUrl: String
+  format: String
+  enabled: Boolean!
+  loadedDocuments: Int!
+  lastLoadedAt: String
+  lastError: String
 }

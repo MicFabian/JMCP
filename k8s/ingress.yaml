@@ -3,18 +3,13 @@ kind: Ingress
 metadata:
   name: mcp-java
   annotations:
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
     nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
 spec:
   ingressClassName: nginx
-  tls:
-    - hosts:
-        - mcp.local
-      secretName: mcp-java-tls
   rules:
-    - host: mcp.local
-      http:
+    - http:
         paths:
           - path: /
             pathType: Prefix

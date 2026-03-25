@@ -414,6 +414,38 @@ kubectl apply -f k8s/service.yaml
 kubectl apply -f k8s/ingress.yaml
 ```
 
+### Public Internet Access (API-key protected)
+
+On single-node k3s without an external cloud load balancer, ingress is exposed via NodePorts:
+- HTTP: `30739`
+- HTTPS: `32413`
+
+Example public MCP/API URL format:
+- `http://<your-node-public-ip>:30739`
+
+Fetch your runtime API key:
+
+```bash
+kubectl -n jmcp-prod get secret mcp-java-secrets -o jsonpath='{.data.api-key}' | base64 --decode
+```
+
+Verify over internet:
+
+```bash
+curl -H "X-API-Key: <api-key>" http://<your-node-public-ip>:30739/api/mcp/manifest
+```
+
+Use in Codex:
+
+```bash
+export JMCP_BEARER_TOKEN="<api-key>"
+codex mcp add jmcp-prod \
+  --url http://<your-node-public-ip>:30739/mcp \
+  --bearer-token-env-var JMCP_BEARER_TOKEN
+```
+
+Note: this mode is HTTP + API key. For production internet exposure, add a real DNS hostname and TLS cert, then re-enable strict HTTPS in ingress/app settings.
+
 ## GitHub Actions Deploy (GHCR -> Kubernetes)
 
 Workflow file:
@@ -437,7 +469,6 @@ Required GitHub repository secrets:
 
 Recommended GitHub repository variables:
 - `GHCR_PULL_USERNAME` (defaults to `micfabian` if unset)
-- `K8S_INGRESS_HOST` (defaults to `mcp.local` if unset)
 
 Set secrets and variables with GitHub CLI:
 
@@ -455,7 +486,6 @@ gh secret set TLS_KEY --repo "$REPO" < /absolute/path/privkey.pem
 
 # recommended variables
 gh variable set GHCR_PULL_USERNAME --repo "$REPO" --body "micfabian"
-gh variable set K8S_INGRESS_HOST --repo "$REPO" --body "mcp.your-domain.tld"
 ```
 
 Quick trigger:

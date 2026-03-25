@@ -28,12 +28,14 @@ class IngressSecuritySpec extends Specification {
             .followRedirects(HttpClient.Redirect.NEVER)
             .build()
 
-    def 'should redirect plain http to https when enforce-https is enabled'() {
+    def 'should redirect forwarded plain http to https when enforce-https is enabled'() {
         when:
         def response = client.send(
                 HttpRequest.newBuilder(URI.create(url('/api/mcp/manifest')))
                         .header('Accept', 'application/json')
                         .header('X-API-Key', 'test-secret')
+                        .header('X-Forwarded-Proto', 'http')
+                        .header('X-Forwarded-Host', 'mcp.example.internal')
                         .GET()
                         .build(),
                 HttpResponse.BodyHandlers.ofString()
@@ -60,6 +62,20 @@ class IngressSecuritySpec extends Specification {
         then:
         response.statusCode() == 200
         response.headers().firstValue('strict-transport-security').orElse('').contains('max-age=')
+    }
+
+    def 'should keep direct health probe over http without redirect'() {
+        when:
+        def response = client.send(
+                HttpRequest.newBuilder(URI.create(url('/actuator/health/readiness')))
+                        .header('Accept', 'application/json')
+                        .GET()
+                        .build(),
+                HttpResponse.BodyHandlers.ofString()
+        )
+
+        then:
+        response.statusCode() == 200
     }
 
     private String url(String path) {

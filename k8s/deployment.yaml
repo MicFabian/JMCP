@@ -19,9 +19,16 @@ spec:
       terminationGracePeriodSeconds: 30
       imagePullSecrets:
         - name: ghcr-secret
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: mcp-service
-          image: myorg/mcp-java:latest
+          image: ghcr.io/micfabian/jmcp:latest
           ports:
             - containerPort: 8080
             - containerPort: 9090
@@ -40,7 +47,6 @@ spec:
                   name: mcp-java-secrets
                   key: api-key
           securityContext:
-            runAsNonRoot: true
             allowPrivilegeEscalation: false
             capabilities:
               drop:
@@ -56,17 +62,26 @@ spec:
             httpGet:
               path: /actuator/health/readiness
               port: 8080
+              httpHeaders:
+                - name: X-Forwarded-Proto
+                  value: https
             periodSeconds: 2
             failureThreshold: 30
           livenessProbe:
             httpGet:
               path: /actuator/health/liveness
               port: 8080
+              httpHeaders:
+                - name: X-Forwarded-Proto
+                  value: https
             initialDelaySeconds: 20
             periodSeconds: 20
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness
               port: 8080
+              httpHeaders:
+                - name: X-Forwarded-Proto
+                  value: https
             initialDelaySeconds: 10
             periodSeconds: 10

@@ -153,7 +153,11 @@ jobs:
           K8S_INGRESS_HOST: ${{ vars.K8S_INGRESS_HOST }}
         run: |
           set -euo pipefail
-          kubectl -n "${{ env.K8S_NAMESPACE }}" apply -f k8s/deployment.yaml
+          IMAGE_TAG="sha-$(git rev-parse --short HEAD)"
+          IMAGE_REF="${{ env.IMAGE_NAME }}:${IMAGE_TAG}"
+          sed -E "s|image: .*|image: ${IMAGE_REF}|" k8s/deployment.yaml > /tmp/deployment.yaml
+
+          kubectl -n "${{ env.K8S_NAMESPACE }}" apply -f /tmp/deployment.yaml
           kubectl -n "${{ env.K8S_NAMESPACE }}" apply -f k8s/service.yaml
 
           HOST="${K8S_INGRESS_HOST:-mcp.local}"
@@ -162,13 +166,6 @@ jobs:
               k8s/ingress.yaml > /tmp/ingress.yaml
           kubectl -n "${{ env.K8S_NAMESPACE }}" apply -f /tmp/ingress.yaml
 
-      - name: Roll out image
-        run: |
-          set -euo pipefail
-          IMAGE_TAG="sha-$(git rev-parse --short HEAD)"
-          kubectl -n "${{ env.K8S_NAMESPACE }}" set image \
-            deployment/${{ env.DEPLOYMENT_NAME }} \
-            ${{ env.CONTAINER_NAME }}=${{ env.IMAGE_NAME }}:${IMAGE_TAG}
           kubectl -n "${{ env.K8S_NAMESPACE }}" rollout status \
             deployment/${{ env.DEPLOYMENT_NAME }} --timeout=300s
 

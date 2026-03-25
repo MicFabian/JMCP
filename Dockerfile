@@ -6,11 +6,11 @@ RUN --mount=type=cache,target=/home/gradle/.gradle gradle clean bootJar --no-dae
 
 FROM eclipse-temurin:25-jre
 WORKDIR /app
-RUN groupadd --system mcp && useradd --system --gid mcp --home-dir /app --shell /usr/sbin/nologin mcp \
+RUN groupadd --system --gid 10001 mcp && useradd --system --uid 10001 --gid 10001 --home-dir /app --shell /usr/sbin/nologin mcp \
     && mkdir -p /app/data \
-    && chown -R mcp:mcp /app
-COPY --chown=mcp:mcp --from=builder /app/build/libs/java-mcp-0.1.0-SNAPSHOT.jar /app/mcp.jar
-USER mcp:mcp
+    && chown -R 10001:10001 /app
+COPY --chown=10001:10001 --from=builder /app/build/libs/java-mcp-0.1.0-SNAPSHOT.jar /app/mcp.jar
+USER 10001:10001
 ENV JAVA_TOOL_OPTIONS="--enable-native-access=ALL-UNNAMED -XX:MaxRAMPercentage=80.0"
 EXPOSE 8080
 EXPOSE 9090

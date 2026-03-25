@@ -80,7 +80,17 @@ public class SecurityConfig {
             if (HttpMethod.OPTIONS.matches(request.getMethod())) {
                 return true;
             }
-            return request.isSecure();
+            String path = request.getRequestURI();
+            if (path.startsWith("/actuator/health")
+                    || "/actuator/info".equals(path)
+                    || "/actuator/prometheus".equals(path)) {
+                return true;
+            }
+            if (request.isSecure()) {
+                return true;
+            }
+            String forwardedProto = request.getHeader("X-Forwarded-Proto");
+            return forwardedProto == null || forwardedProto.isBlank();
         }
 
         @Override

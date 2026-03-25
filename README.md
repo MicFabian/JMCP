@@ -439,6 +439,25 @@ Recommended GitHub repository variables:
 - `GHCR_PULL_USERNAME` (defaults to `micfabian` if unset)
 - `K8S_INGRESS_HOST` (defaults to `mcp.local` if unset)
 
+Set secrets and variables with GitHub CLI:
+
+```bash
+export REPO="MicFabian/JMCP"
+
+# required secrets
+gh secret set KUBE_CONFIG --repo "$REPO" < ~/.kube/config
+gh secret set GHCR_PULL_TOKEN --repo "$REPO" --body "<ghcr-read-token>"
+gh secret set MCP_API_KEY --repo "$REPO" --body "<strong-api-key>"
+
+# optional but recommended for TLS ingress
+gh secret set TLS_CERT --repo "$REPO" < /absolute/path/fullchain.pem
+gh secret set TLS_KEY --repo "$REPO" < /absolute/path/privkey.pem
+
+# recommended variables
+gh variable set GHCR_PULL_USERNAME --repo "$REPO" --body "micfabian"
+gh variable set K8S_INGRESS_HOST --repo "$REPO" --body "mcp.your-domain.tld"
+```
+
 Quick trigger:
 
 ```bash

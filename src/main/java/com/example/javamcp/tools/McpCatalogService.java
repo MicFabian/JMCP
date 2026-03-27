@@ -50,6 +50,11 @@ public class McpCatalogService {
                     "symbols",
                     "Extract Java symbol graph for structured code navigation.",
                     "{\"code\":\"class A { void run(){ helper(); } void helper(){} }\"}"
+            ),
+            new ToolDescriptor(
+                    "migration-assistant",
+                    "Assess Java/Spring migration readiness from build files and code snippets.",
+                    "{\"buildFile\":\"plugins { id 'org.springframework.boot' version '3.3.2' }\",\"buildFilePath\":\"build.gradle\",\"code\":\"import javax.servlet.*; class Demo {}\",\"targetJavaVersion\":25,\"targetSpringBootVersion\":\"4.0.0\",\"includeDocs\":true}"
             )
     );
 
@@ -74,6 +79,13 @@ public class McpCatalogService {
                     List.of("who calls", "dependency graph", "symbol graph", "method usage"),
                     "symbols",
                     80
+            ),
+            new ToolInvocationRule(
+                    "project-migration-audit",
+                    "If the user asks for Java/Spring migration planning, run migration-assistant with the project build and code context.",
+                    List.of("upgrade", "migrate", "boot 4", "java 25", "jakarta"),
+                    "migration-assistant",
+                    95
             )
     );
 
@@ -101,6 +113,14 @@ public class McpCatalogService {
                     "Generate secure-by-default Spring config snippets from scoped docs.",
                     "Use query-docs against {{libraryId}} with query '{{query}} security defaults'.\n"
                             + "Return minimal secure config template and explain each non-default setting."
+            ),
+            new PromptTemplate(
+                    "gradle-migration-audit",
+                    "Gradle Migration Audit",
+                    "Analyze a Gradle project for Java 25 and Spring Boot 4 migration readiness.",
+                    "1) run migration-assistant(buildFile={{buildFile}}, buildFilePath=\"build.gradle\", code={{codeSnippet}}, targetJavaVersion=25, targetSpringBootVersion=\"4.0.0\", includeDocs=true)\n"
+                            + "2) prioritize findings by severity\n"
+                            + "3) convert top findings into ordered code changes with validation steps."
             )
     );
 

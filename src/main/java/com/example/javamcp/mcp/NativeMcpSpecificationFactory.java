@@ -4,6 +4,7 @@ import com.example.javamcp.analysis.AstService;
 import com.example.javamcp.analysis.RuleEngineService;
 import com.example.javamcp.analysis.SymbolGraphService;
 import com.example.javamcp.model.LibraryDocsResponse;
+import com.example.javamcp.model.MigrationAssistantRequest;
 import com.example.javamcp.model.McpResourceDescriptor;
 import com.example.javamcp.model.McpResourceResponse;
 import com.example.javamcp.model.PromptTemplate;
@@ -14,6 +15,7 @@ import com.example.javamcp.search.LuceneSearchService;
 import com.example.javamcp.search.SearchMode;
 import com.example.javamcp.search.SearchQuery;
 import com.example.javamcp.tools.LibraryToolsService;
+import com.example.javamcp.tools.MigrationAssistantService;
 import com.example.javamcp.tools.McpCatalogService;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
@@ -39,6 +41,7 @@ public class NativeMcpSpecificationFactory {
     private final RuleEngineService ruleEngineService;
     private final AstService astService;
     private final SymbolGraphService symbolGraphService;
+    private final MigrationAssistantService migrationAssistantService;
     private final IndexLifecycleService indexLifecycleService;
     private final McpCatalogService mcpCatalogService;
 
@@ -48,6 +51,7 @@ public class NativeMcpSpecificationFactory {
                                          RuleEngineService ruleEngineService,
                                          AstService astService,
                                          SymbolGraphService symbolGraphService,
+                                         MigrationAssistantService migrationAssistantService,
                                          IndexLifecycleService indexLifecycleService,
                                          McpCatalogService mcpCatalogService) {
         this.objectMapper = objectMapper;
@@ -56,6 +60,7 @@ public class NativeMcpSpecificationFactory {
         this.ruleEngineService = ruleEngineService;
         this.astService = astService;
         this.symbolGraphService = symbolGraphService;
+        this.migrationAssistantService = migrationAssistantService;
         this.indexLifecycleService = indexLifecycleService;
         this.mcpCatalogService = mcpCatalogService;
     }
@@ -68,6 +73,7 @@ public class NativeMcpSpecificationFactory {
                 analyzeTool(),
                 astTool(),
                 symbolsTool(),
+                migrationAssistantTool(),
                 indexStatsTool(),
                 rebuildIndexTool(),
                 manifestTool()
@@ -301,6 +307,35 @@ public class NativeMcpSpecificationFactory {
             Map<String, Object> args = request.arguments() == null ? Map.of() : request.arguments();
             String code = requireNonBlank(stringArg(args, "code"), "code");
             return success(symbolGraphService.extract(code));
+        }));
+    }
+
+    private McpServerFeatures.SyncToolSpecification migrationAssistantTool() {
+        McpSchema.Tool tool = tool(
+                "migration-assistant",
+                "Assess Java/Spring migration readiness from build files and code snippets.",
+                Map.of(
+                        "buildFile", stringProperty("Build file content (Gradle/Maven)"),
+                        "buildFilePath", stringProperty("Optional build file path, e.g. build.gradle"),
+                        "code", stringProperty("Optional Java code snippet for migration checks"),
+                        "targetJavaVersion", integerProperty("Target Java major version (default 25)"),
+                        "targetSpringBootVersion", stringProperty("Target Spring Boot version (default 4.0.0)"),
+                        "includeDocs", booleanProperty("When true, include reference docs in the response")
+                ),
+                List.of()
+        );
+
+        return new McpServerFeatures.SyncToolSpecification(tool, (exchange, request) -> safeToolCall(() -> {
+            Map<String, Object> args = request.arguments() == null ? Map.of() : request.arguments();
+            MigrationAssistantRequest payload = new MigrationAssistantRequest(
+                    stringArg(args, "buildFile"),
+                    stringArg(args, "buildFilePath"),
+                    stringArg(args, "code"),
+                    integerArg(args, "targetJavaVersion"),
+                    stringArg(args, "targetSpringBootVersion"),
+                    booleanArgNullable(args, "includeDocs")
+            );
+            return success(migrationAssistantService.assess(payload));
         }));
     }
 
@@ -554,6 +589,21 @@ public class NativeMcpSpecificationFactory {
             return bool;
         }
         return Boolean.parseBoolean(String.valueOf(value).trim());
+    }
+
+    private Boolean booleanArgNullable(Map<String, Object> arguments, String key) {
+        Object value = arguments.get(key);
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        String normalized = String.valueOf(value).trim();
+        if (normalized.isBlank()) {
+            return null;
+        }
+        return Boolean.parseBoolean(normalized);
     }
 
     private String requireNonBlank(String value, String field) {

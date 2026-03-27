@@ -16,6 +16,7 @@ service McpService {
   rpc Ast (AstRequest) returns (AstReply);
   rpc Symbols (SymbolsRequest) returns (SymbolsReply);
   rpc ListRules (RulesRequest) returns (RulesReply);
+  rpc MigrationAssistant (MigrationAssistantRequest) returns (MigrationAssistantReply);
   rpc IndexStats (IndexStatsRequest) returns (IndexStatsReply);
   rpc RebuildIndex (RebuildIndexRequest) returns (IndexStatsReply);
 }
@@ -237,6 +238,44 @@ message RuleDefinition {
   string severity = 6;
   string target = 7;
   bool enabled = 8;
+}
+
+message MigrationAssistantRequest {
+  string build_file = 1;
+  string build_file_path = 2;
+  string code = 3;
+  int32 target_java_version = 4;
+  string target_spring_boot_version = 5;
+  optional bool include_docs = 6;
+}
+
+message MigrationAssistantReply {
+  string build_tool = 1;
+  string detected_java_version = 2;
+  string target_java_version = 3;
+  string detected_spring_boot_version = 4;
+  string target_spring_boot_version = 5;
+  int32 issue_count = 6;
+  repeated MigrationFinding findings = 7;
+  repeated string recommended_actions = 8;
+  repeated MigrationReference references = 9;
+}
+
+message MigrationFinding {
+  string code = 1;
+  string severity = 2;
+  string message = 3;
+  string recommendation = 4;
+  string detected_value = 5;
+  string target_value = 6;
+}
+
+message MigrationReference {
+  string library_id = 1;
+  string title = 2;
+  string source_url = 3;
+  string version = 4;
+  float score = 5;
 }
 
 message IndexStatsRequest {}

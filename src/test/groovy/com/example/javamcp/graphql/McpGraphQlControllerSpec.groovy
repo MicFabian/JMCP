@@ -9,6 +9,9 @@ import com.example.javamcp.model.IndexStatsResponse
 import com.example.javamcp.model.LibraryCandidate
 import com.example.javamcp.model.LibraryDoc
 import com.example.javamcp.model.LibraryDocsResponse
+import com.example.javamcp.model.MigrationAssistantResponse
+import com.example.javamcp.model.MigrationFinding
+import com.example.javamcp.model.MigrationReference
 import com.example.javamcp.model.McpManifest
 import com.example.javamcp.model.McpResourceDescriptor
 import com.example.javamcp.model.McpResourceResponse
@@ -21,6 +24,7 @@ import com.example.javamcp.search.IndexLifecycleService
 import com.example.javamcp.search.LuceneSearchService
 import com.example.javamcp.search.SearchMode
 import com.example.javamcp.tools.LibraryToolsService
+import com.example.javamcp.tools.MigrationAssistantService
 import com.example.javamcp.tools.McpCatalogService
 import spock.lang.Specification
 
@@ -57,6 +61,19 @@ class McpGraphQlControllerSpec extends Specification {
                     [new LibraryDoc('spring-boot-csrf', 'Enable CSRF Protection', 'By default...', 'Spring Security Reference', 'https://docs.spring.io/spring-security/reference/servlet/exploits/csrf.html', '4.0.0', 0.9f, 0.8f, 0.9f, ['csrf'])]
             )
         }
+        def migration = Stub(MigrationAssistantService) {
+            assess(_) >> new MigrationAssistantResponse(
+                    'GRADLE_GROOVY',
+                    '17',
+                    '25',
+                    '3.3.2',
+                    '4.0.0',
+                    1,
+                    [new MigrationFinding('java-version-upgrade-required', 'HIGH', 'Upgrade Java', 'Use Java 25 toolchain', '17', '25')],
+                    ['Use Java 25 toolchain'],
+                    [new MigrationReference('/openjdk/jdk', 'Virtual Threads', 'https://openjdk.org/jeps/444', '25', 0.9f)]
+            )
+        }
         def catalog = Stub(McpCatalogService) {
             listToolRules() >> [new ToolInvocationRule('r1', 'desc', ['spring'], 'resolve-library-id -> query-docs', 100)]
             listTools() >> [new ToolDescriptor('query-docs', 'desc', '{}')]
@@ -77,7 +94,7 @@ class McpGraphQlControllerSpec extends Specification {
             listPrompts() >> [new PromptTemplate('resolve-then-query', 'Resolve Then Query', 'desc', 'template')]
         }
 
-        def controller = new McpGraphQlController(lucene, rules, ast, symbols, lifecycle, tools, catalog)
+        def controller = new McpGraphQlController(lucene, rules, ast, symbols, lifecycle, tools, migration, catalog)
 
         when:
         def searchResponse = controller.search('abc', 5, null, [], null, SearchMode.HYBRID, true)
@@ -90,6 +107,14 @@ class McpGraphQlControllerSpec extends Specification {
         def resources = controller.mcpResources()
         def resource = controller.mcpResource('spring-boot-csrf')
         def prompts = controller.prompts()
+        def migrationResponse = controller.migrationAssistant(
+                "plugins { id 'org.springframework.boot' version '3.3.2' }",
+                'build.gradle',
+                'class Demo {}',
+                25,
+                '4.0.0',
+                true
+        )
 
         then:
         searchResponse.count() == 0
@@ -102,5 +127,7 @@ class McpGraphQlControllerSpec extends Specification {
         resources.size() == 1
         resource.resource().resourceId() == 'spring-boot-csrf'
         prompts.size() == 1
+        migrationResponse.issueCount() == 1
+        migrationResponse.findings().first().code() == 'java-version-upgrade-required'
     }
 }

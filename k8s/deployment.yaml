@@ -39,6 +39,78 @@ spec:
               value: "prod"
             - name: MCP_REBUILD_ON_STARTUP
               value: "false"
+            - name: MCP_INGEST_INCLUDE_CLASSPATH
+              value: "true"
+            - name: MCP_INGEST_SCHEDULE_ENABLED
+              value: "true"
+            - name: MCP_INGEST_SCHEDULE_FIXED_DELAY_MS
+              value: "21600000"
+            - name: MCP_INGEST_SCHEDULE_INITIAL_DELAY_MS
+              value: "60000"
+            - name: MCP_INGEST_REMOTE_SOURCES_0_ID
+              value: "spring-security-csrf"
+            - name: MCP_INGEST_REMOTE_SOURCES_0_URL
+              value: "https://docs.spring.io/spring-security/reference/servlet/exploits/csrf.html"
+            - name: MCP_INGEST_REMOTE_SOURCES_0_FORMAT
+              value: "html"
+            - name: MCP_INGEST_REMOTE_SOURCES_0_SOURCE_NAME
+              value: "Spring Security Reference"
+            - name: MCP_INGEST_REMOTE_SOURCES_0_SOURCE_TAG
+              value: "spring-security"
+            - name: MCP_INGEST_REMOTE_SOURCES_0_VERSION
+              value: "6.4"
+            - name: MCP_INGEST_REMOTE_SOURCES_0_ENABLED
+              value: "true"
+            - name: MCP_INGEST_REMOTE_SOURCES_0_FAIL_ON_ERROR
+              value: "false"
+            - name: MCP_INGEST_REMOTE_SOURCES_1_ID
+              value: "spring-framework-constructor-injection"
+            - name: MCP_INGEST_REMOTE_SOURCES_1_URL
+              value: "https://docs.spring.io/spring-framework/reference/core/beans/dependencies/factory-collaborators.html"
+            - name: MCP_INGEST_REMOTE_SOURCES_1_FORMAT
+              value: "html"
+            - name: MCP_INGEST_REMOTE_SOURCES_1_SOURCE_NAME
+              value: "Spring Framework Reference"
+            - name: MCP_INGEST_REMOTE_SOURCES_1_SOURCE_TAG
+              value: "spring-framework"
+            - name: MCP_INGEST_REMOTE_SOURCES_1_VERSION
+              value: "6.2"
+            - name: MCP_INGEST_REMOTE_SOURCES_1_ENABLED
+              value: "true"
+            - name: MCP_INGEST_REMOTE_SOURCES_1_FAIL_ON_ERROR
+              value: "false"
+            - name: MCP_INGEST_REMOTE_SOURCES_2_ID
+              value: "openjdk-jep-444"
+            - name: MCP_INGEST_REMOTE_SOURCES_2_URL
+              value: "https://openjdk.org/jeps/444"
+            - name: MCP_INGEST_REMOTE_SOURCES_2_FORMAT
+              value: "html"
+            - name: MCP_INGEST_REMOTE_SOURCES_2_SOURCE_NAME
+              value: "OpenJDK JEP"
+            - name: MCP_INGEST_REMOTE_SOURCES_2_SOURCE_TAG
+              value: "openjdk"
+            - name: MCP_INGEST_REMOTE_SOURCES_2_VERSION
+              value: "25"
+            - name: MCP_INGEST_REMOTE_SOURCES_2_ENABLED
+              value: "true"
+            - name: MCP_INGEST_REMOTE_SOURCES_2_FAIL_ON_ERROR
+              value: "false"
+            - name: MCP_INGEST_REMOTE_SOURCES_3_ID
+              value: "openjdk-jep-505"
+            - name: MCP_INGEST_REMOTE_SOURCES_3_URL
+              value: "https://openjdk.org/jeps/505"
+            - name: MCP_INGEST_REMOTE_SOURCES_3_FORMAT
+              value: "html"
+            - name: MCP_INGEST_REMOTE_SOURCES_3_SOURCE_NAME
+              value: "OpenJDK JEP"
+            - name: MCP_INGEST_REMOTE_SOURCES_3_SOURCE_TAG
+              value: "openjdk"
+            - name: MCP_INGEST_REMOTE_SOURCES_3_VERSION
+              value: "25"
+            - name: MCP_INGEST_REMOTE_SOURCES_3_ENABLED
+              value: "true"
+            - name: MCP_INGEST_REMOTE_SOURCES_3_FAIL_ON_ERROR
+              value: "false"
             - name: MCP_INGRESS_ENFORCE_HTTPS
               value: "false"
             - name: MCP_INGRESS_HSTS_ENABLED

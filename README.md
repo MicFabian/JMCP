@@ -5,6 +5,7 @@ Java-only Machine-Consumable Knowledge Platform (MCP) MVP for agent workflows:
 - Spring Boot API (`/api/search`, `/api/ast`, `/api/analyze`, `/api/symbols`, `/api/rules`, `/api/index/*`)
 - Context7-inspired tool APIs (`/api/tools/resolve-library-id`, `/api/tools/get-library-docs`)
 - Query-first tool API (`/api/tools/query-docs`) with rerank + dedup + score diagnostics
+- Migration assistant tool API (`/api/tools/migration-assistant`) for Java 25 + Spring Boot 4 upgrade planning
 - Multi-source ingestion: classpath JSON + remote HTTP sources (JSON/HTML/Markdown/Text)
 - Scheduled background reindexing (`mcp.ingest.schedule.*`)
 - MCP discovery APIs (`/api/mcp/manifest`, `/api/mcp/tools`, `/api/mcp/resources`, `/api/mcp/prompts`, `/api/mcp/tool-rules`)
@@ -52,13 +53,14 @@ flowchart LR
 8. `GET /api/index/sources`
 9. `GET /api/tools/resolve-library-id?query=spring+security+csrf&limit=5`
 10. `GET /api/tools/query-docs?libraryId=/spring-projects/spring-security&query=csrf&tokens=5000&alpha=0.65`
-11. `GET /api/mcp/tools`
-12. `GET /api/mcp/manifest`
-13. `GET /api/mcp/resources`
-14. `GET /api/mcp/prompts`
-15. `POST /graphql`
-16. `gRPC mcp.v1.McpService` on `localhost:9090`
-17. `GET /actuator/prometheus`
+11. `POST /api/tools/migration-assistant`
+12. `GET /api/mcp/tools`
+13. `GET /api/mcp/manifest`
+14. `GET /api/mcp/resources`
+15. `GET /api/mcp/prompts`
+16. `POST /graphql`
+17. `gRPC mcp.v1.McpService` on `localhost:9090`
+18. `GET /actuator/prometheus`
 
 ### Example: `/api/ast`
 
@@ -82,6 +84,19 @@ flowchart LR
 ```json
 {
   "code": "class A { void run(){ helper(); } void helper(){} }"
+}
+```
+
+### Example: `/api/tools/migration-assistant`
+
+```json
+{
+  "buildFile": "plugins { id 'org.springframework.boot' version '3.3.2' } java { toolchain { languageVersion = JavaLanguageVersion.of(17) } }",
+  "buildFilePath": "build.gradle",
+  "code": "import javax.servlet.*; class Demo {}",
+  "targetJavaVersion": 25,
+  "targetSpringBootVersion": "4.0.0",
+  "includeDocs": true
 }
 ```
 
@@ -130,6 +145,9 @@ grpcurl -plaintext -d '{"library_name":"spring security","topic":"csrf","limit":
 grpcurl -plaintext -d '{"library_id":"/spring-projects/spring-security","query":"csrf","tokens":5000,"limit":5,"mode":"HYBRID","alpha":0.65}' \
   localhost:9090 mcp.v1.McpService/QueryDocs
 
+grpcurl -plaintext -d '{"build_file":"plugins { id '\''org.springframework.boot'\'' version '\''3.3.2'\'' }","build_file_path":"build.gradle","code":"import javax.servlet.*; class Demo {}","target_java_version":25,"target_spring_boot_version":"4.0.0","include_docs":true}' \
+  localhost:9090 mcp.v1.McpService/MigrationAssistant
+
 grpcurl -plaintext -d '{}' \
   localhost:9090 mcp.v1.McpService/GetMcpManifest
 ```
@@ -152,11 +170,13 @@ java -cp build/classes/java/main:build/resources/main com.example.javamcp.grpc.M
 ./scripts/grpc/resolve-library-id.sh "spring security" csrf 5
 ./scripts/grpc/get-library-docs.sh /spring-projects/spring-security csrf 5000 5 HYBRID
 ./scripts/grpc/query-docs.sh /spring-projects/spring-security csrf 5000 5 HYBRID 0.65
+./scripts/grpc/migration-assistant.sh
 ./scripts/grpc/mcp-manifest.sh
 ./scripts/rest/search.sh constructor
 ./scripts/rest/resolve-library-id.sh "spring security" csrf 5
 ./scripts/rest/get-library-docs.sh /spring-projects/spring-security csrf 5000 5 HYBRID
 ./scripts/rest/query-docs.sh /spring-projects/spring-security csrf 5000 5 HYBRID 0.65
+./scripts/rest/migration-assistant.sh
 ./scripts/rest/prometheus.sh
 ./scripts/rest/mcp-manifest.sh
 ./scripts/rest/mcp-catalog.sh
@@ -544,7 +564,8 @@ gantt
     Basic search API            :done, p1b, 2026-03-08, 7d
     AST demo + rules            :done, p1c, 2026-03-15, 7d
     section Phase 2 Core Pipeline
-    Expand ingestion            :active, p2a, 2026-03-22, 14d
+    Expand ingestion            :done, p2a, 2026-03-22, 14d
+    Migration assistant APIs    :done, p2d, 2026-03-25, 7d
     Hybrid retrieval tuning     :p2b, 2026-04-05, 14d
     Symbol graph module         :p2c, 2026-04-19, 7d
     section Phase 3 Deployment & QA

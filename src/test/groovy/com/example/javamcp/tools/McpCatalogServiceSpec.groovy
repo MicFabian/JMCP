@@ -38,12 +38,16 @@ class McpCatalogServiceSpec extends Specification {
 
         then:
         tools*.name().contains('query-docs')
+        tools*.name().contains('migration-assistant')
         rules*.id().contains('java-library-docs')
+        rules*.id().contains('project-migration-audit')
         resources*.resourceId() == ['spring-boot-csrf']
         resource.resource().uri() == 'mcp://docs/spring-boot-csrf'
         prompts*.id().contains('resolve-then-query')
+        prompts*.id().contains('gradle-migration-audit')
         manifest.serverName() == 'java-mcp'
         manifest.tools()*.name().contains('query-docs')
+        manifest.tools()*.name().contains('migration-assistant')
         manifest.resources()*.resourceId() == ['spring-boot-csrf']
     }
 }

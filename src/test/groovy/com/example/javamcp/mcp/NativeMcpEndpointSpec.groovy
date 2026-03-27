@@ -80,7 +80,7 @@ class NativeMcpEndpointSpec extends Specification {
         def result = (Map) listToolsBody.get('result')
         result != null
         def tools = (List<Map<String, Object>>) result.get('tools')
-        tools*.name.containsAll(['resolve-library-id', 'query-docs', 'search', 'analyze', 'symbols'])
+        tools*.name.containsAll(['resolve-library-id', 'query-docs', 'search', 'analyze', 'symbols', 'migration-assistant'])
     }
 
     private String url(String path) {

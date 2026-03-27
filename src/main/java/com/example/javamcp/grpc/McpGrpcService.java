@@ -22,6 +22,10 @@ import com.example.javamcp.grpc.generated.McpResource;
 import com.example.javamcp.grpc.generated.McpServiceGrpc;
 import com.example.javamcp.grpc.generated.McpTool;
 import com.example.javamcp.grpc.generated.McpToolRule;
+import com.example.javamcp.grpc.generated.MigrationAssistantReply;
+import com.example.javamcp.grpc.generated.MigrationAssistantRequest;
+import com.example.javamcp.grpc.generated.MigrationFinding;
+import com.example.javamcp.grpc.generated.MigrationReference;
 import com.example.javamcp.grpc.generated.RebuildIndexRequest;
 import com.example.javamcp.grpc.generated.ResolveLibraryIdReply;
 import com.example.javamcp.grpc.generated.ResolveLibraryIdRequest;
@@ -38,12 +42,14 @@ import com.example.javamcp.grpc.generated.SymbolsReply;
 import com.example.javamcp.grpc.generated.SymbolsRequest;
 import com.example.javamcp.model.IndexStatsResponse;
 import com.example.javamcp.model.LibraryDocsResponse;
+import com.example.javamcp.model.MigrationAssistantResponse;
 import com.example.javamcp.model.ResolveLibraryResponse;
 import com.example.javamcp.search.IndexLifecycleService;
 import com.example.javamcp.search.LuceneSearchService;
 import com.example.javamcp.search.SearchMode;
 import com.example.javamcp.search.SearchQuery;
 import com.example.javamcp.tools.LibraryToolsService;
+import com.example.javamcp.tools.MigrationAssistantService;
 import com.example.javamcp.tools.McpCatalogService;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
@@ -60,6 +66,7 @@ public class McpGrpcService extends McpServiceGrpc.McpServiceImplBase {
     private final SymbolGraphService symbolGraphService;
     private final IndexLifecycleService indexLifecycleService;
     private final LibraryToolsService libraryToolsService;
+    private final MigrationAssistantService migrationAssistantService;
     private final McpCatalogService mcpCatalogService;
 
     public McpGrpcService(LuceneSearchService luceneSearchService,
@@ -68,6 +75,7 @@ public class McpGrpcService extends McpServiceGrpc.McpServiceImplBase {
                           SymbolGraphService symbolGraphService,
                           IndexLifecycleService indexLifecycleService,
                           LibraryToolsService libraryToolsService,
+                          MigrationAssistantService migrationAssistantService,
                           McpCatalogService mcpCatalogService) {
         this.luceneSearchService = luceneSearchService;
         this.ruleEngineService = ruleEngineService;
@@ -75,6 +83,7 @@ public class McpGrpcService extends McpServiceGrpc.McpServiceImplBase {
         this.symbolGraphService = symbolGraphService;
         this.indexLifecycleService = indexLifecycleService;
         this.libraryToolsService = libraryToolsService;
+        this.migrationAssistantService = migrationAssistantService;
         this.mcpCatalogService = mcpCatalogService;
     }
 
@@ -383,6 +392,53 @@ public class McpGrpcService extends McpServiceGrpc.McpServiceImplBase {
 
             responseObserver.onNext(builder.build());
             responseObserver.onCompleted();
+        } catch (Exception e) {
+            responseObserver.onError(Status.INTERNAL.withDescription(defaultString(e.getMessage())).withCause(e).asRuntimeException());
+        }
+    }
+
+    @Override
+    public void migrationAssistant(MigrationAssistantRequest request, StreamObserver<MigrationAssistantReply> responseObserver) {
+        try {
+            MigrationAssistantResponse response = migrationAssistantService.assess(new com.example.javamcp.model.MigrationAssistantRequest(
+                    emptyToNull(request.getBuildFile()),
+                    emptyToNull(request.getBuildFilePath()),
+                    emptyToNull(request.getCode()),
+                    request.getTargetJavaVersion() > 0 ? request.getTargetJavaVersion() : null,
+                    emptyToNull(request.getTargetSpringBootVersion()),
+                    request.hasIncludeDocs() ? request.getIncludeDocs() : null
+            ));
+
+            MigrationAssistantReply.Builder builder = MigrationAssistantReply.newBuilder()
+                    .setBuildTool(defaultString(response.buildTool()))
+                    .setDetectedJavaVersion(defaultString(response.detectedJavaVersion()))
+                    .setTargetJavaVersion(defaultString(response.targetJavaVersion()))
+                    .setDetectedSpringBootVersion(defaultString(response.detectedSpringBootVersion()))
+                    .setTargetSpringBootVersion(defaultString(response.targetSpringBootVersion()))
+                    .setIssueCount(response.issueCount())
+                    .addAllRecommendedActions(response.recommendedActions());
+
+            response.findings().forEach(finding -> builder.addFindings(MigrationFinding.newBuilder()
+                    .setCode(defaultString(finding.code()))
+                    .setSeverity(defaultString(finding.severity()))
+                    .setMessage(defaultString(finding.message()))
+                    .setRecommendation(defaultString(finding.recommendation()))
+                    .setDetectedValue(defaultString(finding.detectedValue()))
+                    .setTargetValue(defaultString(finding.targetValue()))
+                    .build()));
+
+            response.references().forEach(reference -> builder.addReferences(MigrationReference.newBuilder()
+                    .setLibraryId(defaultString(reference.libraryId()))
+                    .setTitle(defaultString(reference.title()))
+                    .setSourceUrl(defaultString(reference.sourceUrl()))
+                    .setVersion(defaultString(reference.version()))
+                    .setScore(reference.score())
+                    .build()));
+
+            responseObserver.onNext(builder.build());
+            responseObserver.onCompleted();
+        } catch (IllegalArgumentException e) {
+            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(defaultString(e.getMessage())).withCause(e).asRuntimeException());
         } catch (Exception e) {
             responseObserver.onError(Status.INTERNAL.withDescription(defaultString(e.getMessage())).withCause(e).asRuntimeException());
         }

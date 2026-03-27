@@ -12,6 +12,8 @@ import com.example.javamcp.model.McpResourceDescriptor;
 import com.example.javamcp.model.McpManifest;
 import com.example.javamcp.model.McpResourceResponse;
 import com.example.javamcp.model.LibraryDocsResponse;
+import com.example.javamcp.model.MigrationAssistantRequest;
+import com.example.javamcp.model.MigrationAssistantResponse;
 import com.example.javamcp.model.PromptTemplate;
 import com.example.javamcp.model.ResolveLibraryResponse;
 import com.example.javamcp.model.SymbolGraphResponse;
@@ -23,6 +25,7 @@ import com.example.javamcp.search.LuceneSearchService;
 import com.example.javamcp.search.SearchMode;
 import com.example.javamcp.search.SearchQuery;
 import com.example.javamcp.tools.LibraryToolsService;
+import com.example.javamcp.tools.MigrationAssistantService;
 import com.example.javamcp.tools.McpCatalogService;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
@@ -40,6 +43,7 @@ public class McpGraphQlController {
     private final SymbolGraphService symbolGraphService;
     private final IndexLifecycleService indexLifecycleService;
     private final LibraryToolsService libraryToolsService;
+    private final MigrationAssistantService migrationAssistantService;
     private final McpCatalogService mcpCatalogService;
 
     public McpGraphQlController(LuceneSearchService luceneSearchService,
@@ -48,6 +52,7 @@ public class McpGraphQlController {
                                 SymbolGraphService symbolGraphService,
                                 IndexLifecycleService indexLifecycleService,
                                 LibraryToolsService libraryToolsService,
+                                MigrationAssistantService migrationAssistantService,
                                 McpCatalogService mcpCatalogService) {
         this.luceneSearchService = luceneSearchService;
         this.ruleEngineService = ruleEngineService;
@@ -55,6 +60,7 @@ public class McpGraphQlController {
         this.symbolGraphService = symbolGraphService;
         this.indexLifecycleService = indexLifecycleService;
         this.libraryToolsService = libraryToolsService;
+        this.migrationAssistantService = migrationAssistantService;
         this.mcpCatalogService = mcpCatalogService;
     }
 
@@ -166,6 +172,23 @@ public class McpGraphQlController {
     @MutationMapping
     public SymbolGraphResponse symbols(@Argument String code) {
         return symbolGraphService.extract(code);
+    }
+
+    @MutationMapping
+    public MigrationAssistantResponse migrationAssistant(@Argument String buildFile,
+                                                         @Argument String buildFilePath,
+                                                         @Argument String code,
+                                                         @Argument Integer targetJavaVersion,
+                                                         @Argument String targetSpringBootVersion,
+                                                         @Argument Boolean includeDocs) {
+        return migrationAssistantService.assess(new MigrationAssistantRequest(
+                buildFile,
+                buildFilePath,
+                code,
+                targetJavaVersion,
+                targetSpringBootVersion,
+                includeDocs
+        ));
     }
 
     @MutationMapping

@@ -1,18 +1,24 @@
 package com.example.javamcp.api;
 
 import com.example.javamcp.model.LibraryDocsResponse;
+import com.example.javamcp.model.MigrationAssistantRequest;
+import com.example.javamcp.model.MigrationAssistantResponse;
 import com.example.javamcp.model.ResolveLibraryResponse;
 import com.example.javamcp.model.ToolInvocationRule;
 import com.example.javamcp.search.SearchMode;
 import com.example.javamcp.tools.LibraryToolsService;
+import com.example.javamcp.tools.MigrationAssistantService;
 import com.example.javamcp.tools.McpCatalogService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -26,11 +32,14 @@ import java.util.Locale;
 public class ToolsController {
 
     private final LibraryToolsService libraryToolsService;
+    private final MigrationAssistantService migrationAssistantService;
     private final McpCatalogService mcpCatalogService;
 
     public ToolsController(LibraryToolsService libraryToolsService,
+                           MigrationAssistantService migrationAssistantService,
                            McpCatalogService mcpCatalogService) {
         this.libraryToolsService = libraryToolsService;
+        this.migrationAssistantService = migrationAssistantService;
         this.mcpCatalogService = mcpCatalogService;
     }
 
@@ -121,6 +130,33 @@ public class ToolsController {
     )
     public List<ToolInvocationRule> autoRules() {
         return mcpCatalogService.listToolRules();
+    }
+
+    @PostMapping("/migration-assistant")
+    @Operation(
+            summary = "Assess Spring/Java migration readiness from build + code inputs",
+            description = "Detects Java/Spring Boot versions, surfaces migration findings, and returns prioritized actions with doc references.",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "Migration assessment generated",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    examples = @ExampleObject(value = "{\"buildTool\":\"GRADLE_GROOVY\",\"detectedJavaVersion\":\"17\",\"targetJavaVersion\":\"25\",\"detectedSpringBootVersion\":\"3.3.2\",\"targetSpringBootVersion\":\"4.0.0\",\"issueCount\":3,\"findings\":[{\"code\":\"java-version-upgrade-required\",\"severity\":\"HIGH\",\"message\":\"Project targets Java 17, but target is Java 25.\",\"recommendation\":\"Upgrade toolchain and compiler release to Java 25.\",\"detectedValue\":\"17\",\"targetValue\":\"25\"}],\"recommendedActions\":[\"Upgrade toolchain and compiler release to Java 25.\"],\"references\":[{\"libraryId\":\"/openjdk/jdk\",\"title\":\"Virtual Threads for Concurrent MCP Requests\",\"sourceUrl\":\"https://openjdk.org/jeps/444\",\"version\":\"25\",\"score\":0.92}]}")
+                            )
+                    ),
+                    @ApiResponse(
+                            responseCode = "400",
+                            description = "Invalid input (both buildFile and code missing)"
+                    )
+            }
+    )
+    public MigrationAssistantResponse migrationAssistant(@Valid @org.springframework.web.bind.annotation.RequestBody
+                                                         @RequestBody(
+                                                                 required = true,
+                                                                 content = @Content(examples = @ExampleObject(value = "{\"buildFile\":\"plugins { id 'org.springframework.boot' version '3.3.2' }\\njava { toolchain { languageVersion = JavaLanguageVersion.of(17) } }\",\"buildFilePath\":\"build.gradle\",\"code\":\"import javax.servlet.*; class Demo {}\",\"targetJavaVersion\":25,\"targetSpringBootVersion\":\"4.0.0\",\"includeDocs\":true}"))
+                                                         ) MigrationAssistantRequest request) {
+        return migrationAssistantService.assess(request);
     }
 
     private SearchMode parseMode(String mode) {

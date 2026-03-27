@@ -60,6 +60,7 @@ class NativeMcpContractSpec extends Specification {
                 'analyze',
                 'ast',
                 'symbols',
+                'migration-assistant',
                 'index-stats',
                 'index-rebuild',
                 'manifest'
@@ -151,6 +152,22 @@ class NativeMcpContractSpec extends Specification {
         symbolsResult.nodeCount > 0
         relations.contains('extends')
         relations.contains('calls')
+
+        when: 'run migration assistant'
+        def migrationResult = successfulToolCall(session.id(), 'migration-assistant', [
+                buildFile               : "plugins { id 'org.springframework.boot' version '3.3.2' }\njava { toolchain { languageVersion = JavaLanguageVersion.of(17) } }",
+                buildFilePath           : 'build.gradle',
+                code                    : 'import javax.servlet.*; class Demo {}',
+                targetJavaVersion       : 25,
+                targetSpringBootVersion : '4.0.0',
+                includeDocs             : true
+        ])
+        def migrationCodes = ((List<Map<String, Object>>) migrationResult.findings)*.code
+
+        then:
+        migrationResult.issueCount >= 2
+        migrationCodes.contains('java-version-upgrade-required')
+        migrationCodes.contains('spring-boot-major-upgrade-required')
 
         when: 'inspect index stats'
         def stats = successfulToolCall(session.id(), 'index-stats', [:])

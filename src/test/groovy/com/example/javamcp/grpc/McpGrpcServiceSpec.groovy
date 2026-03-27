@@ -7,6 +7,8 @@ import com.example.javamcp.grpc.generated.GetLibraryDocsReply
 import com.example.javamcp.grpc.generated.GetLibraryDocsRequest
 import com.example.javamcp.grpc.generated.McpManifestReply
 import com.example.javamcp.grpc.generated.McpManifestRequest
+import com.example.javamcp.grpc.generated.MigrationAssistantReply
+import com.example.javamcp.grpc.generated.MigrationAssistantRequest
 import com.example.javamcp.grpc.generated.ResolveLibraryIdReply
 import com.example.javamcp.grpc.generated.ResolveLibraryIdRequest
 import com.example.javamcp.grpc.generated.SearchReply
@@ -15,6 +17,9 @@ import com.example.javamcp.model.IndexStatsResponse
 import com.example.javamcp.model.LibraryCandidate
 import com.example.javamcp.model.LibraryDoc
 import com.example.javamcp.model.LibraryDocsResponse
+import com.example.javamcp.model.MigrationAssistantResponse
+import com.example.javamcp.model.MigrationFinding
+import com.example.javamcp.model.MigrationReference
 import com.example.javamcp.model.McpManifest
 import com.example.javamcp.model.McpResourceDescriptor
 import com.example.javamcp.model.PromptTemplate
@@ -25,6 +30,7 @@ import com.example.javamcp.model.ToolInvocationRule
 import com.example.javamcp.search.IndexLifecycleService
 import com.example.javamcp.search.LuceneSearchService
 import com.example.javamcp.tools.LibraryToolsService
+import com.example.javamcp.tools.MigrationAssistantService
 import com.example.javamcp.tools.McpCatalogService
 import io.grpc.stub.StreamObserver
 import spock.lang.Specification
@@ -60,6 +66,19 @@ class McpGrpcServiceSpec extends Specification {
                     [new LibraryDoc('spring-boot-csrf', 'Enable CSRF Protection', 'By default...', 'Spring Security Reference', 'https://docs.spring.io/spring-security/reference/servlet/exploits/csrf.html', '4.0.0', 0.9f, 0.8f, 0.9f, ['csrf'])]
             )
         }
+        def migration = Stub(MigrationAssistantService) {
+            assess(_) >> new MigrationAssistantResponse(
+                    'GRADLE_GROOVY',
+                    '17',
+                    '25',
+                    '3.3.2',
+                    '4.0.0',
+                    1,
+                    [new MigrationFinding('java-version-upgrade-required', 'HIGH', 'Upgrade Java', 'Use Java 25 toolchain', '17', '25')],
+                    ['Use Java 25 toolchain'],
+                    [new MigrationReference('/openjdk/jdk', 'Virtual Threads', 'https://openjdk.org/jeps/444', '25', 0.9f)]
+            )
+        }
         def catalog = Stub(McpCatalogService) {
             manifest() >> new McpManifest(
                     'java-mcp',
@@ -72,11 +91,12 @@ class McpGrpcServiceSpec extends Specification {
             )
         }
 
-        def service = new McpGrpcService(lucene, ruleEngine, ast, symbols, lifecycle, tools, catalog)
+        def service = new McpGrpcService(lucene, ruleEngine, ast, symbols, lifecycle, tools, migration, catalog)
         def holder = new SearchReply[1]
         def manifestHolder = new McpManifestReply[1]
         def resolveHolder = new ResolveLibraryIdReply[1]
         def docsHolder = new GetLibraryDocsReply[1]
+        def migrationHolder = new MigrationAssistantReply[1]
         def observer = new StreamObserver<SearchReply>() {
             @Override
             void onNext(SearchReply value) { holder[0] = value }
@@ -117,12 +137,23 @@ class McpGrpcServiceSpec extends Specification {
             @Override
             void onCompleted() {}
         }
+        def migrationObserver = new StreamObserver<MigrationAssistantReply>() {
+            @Override
+            void onNext(MigrationAssistantReply value) { migrationHolder[0] = value }
+
+            @Override
+            void onError(Throwable t) { throw t }
+
+            @Override
+            void onCompleted() {}
+        }
 
         when:
         service.search(SearchRequest.newBuilder().setQuery('constructor').setLimit(5).build(), observer)
         service.getMcpManifest(McpManifestRequest.newBuilder().build(), manifestObserver)
         service.resolveLibraryId(ResolveLibraryIdRequest.newBuilder().setQuery('spring security csrf').setLibraryName('spring security').setTopic('csrf').setLimit(3).build(), resolveObserver)
         service.queryDocs(GetLibraryDocsRequest.newBuilder().setLibraryId('/spring-projects/spring-security').setQuery('csrf').setTokens(1500).setLimit(3).setMode('HYBRID').setAlpha(0.65f).build(), docsObserver)
+        service.migrationAssistant(MigrationAssistantRequest.newBuilder().setBuildFile("plugins { id 'org.springframework.boot' version '3.3.2' }").setBuildFilePath('build.gradle').setCode('class Demo {}').setTargetJavaVersion(25).setTargetSpringBootVersion('4.0.0').setIncludeDocs(true).build(), migrationObserver)
 
         then:
         holder[0] != null
@@ -137,5 +168,8 @@ class McpGrpcServiceSpec extends Specification {
         docsHolder[0].getCount() == 1
         docsHolder[0].getStrategy() == 'hybrid-rerank-dedup'
         docsHolder[0].getDocuments(0).getMatchedTermsList() == ['csrf']
+        migrationHolder[0] != null
+        migrationHolder[0].getIssueCount() == 1
+        migrationHolder[0].getFindings(0).getCode() == 'java-version-upgrade-required'
     }
 }

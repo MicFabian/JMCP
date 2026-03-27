@@ -60,6 +60,14 @@ type Mutation {
   analyze(fileName: String, code: String!): AnalyzeResponse!
   ast(code: String!): AstResponse!
   symbols(code: String!): SymbolGraphResponse!
+  migrationAssistant(
+    buildFile: String
+    buildFilePath: String
+    code: String
+    targetJavaVersion: Int
+    targetSpringBootVersion: String
+    includeDocs: Boolean
+  ): MigrationAssistantResponse!
   rebuildIndex: IndexStatsResponse!
 }
 
@@ -255,4 +263,33 @@ type IngestionSourceStatus {
   loadedDocuments: Int!
   lastLoadedAt: String
   lastError: String
+}
+
+type MigrationAssistantResponse {
+  buildTool: String
+  detectedJavaVersion: String
+  targetJavaVersion: String
+  detectedSpringBootVersion: String
+  targetSpringBootVersion: String
+  issueCount: Int!
+  findings: [MigrationFinding!]!
+  recommendedActions: [String!]!
+  references: [MigrationReference!]!
+}
+
+type MigrationFinding {
+  code: String
+  severity: String
+  message: String
+  recommendation: String
+  detectedValue: String
+  targetValue: String
+}
+
+type MigrationReference {
+  libraryId: String
+  title: String
+  sourceUrl: String
+  version: String
+  score: Float!
 }

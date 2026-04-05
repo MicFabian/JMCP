@@ -54,6 +54,7 @@ class NativeMcpContractSpec extends Specification {
 
         then:
         toolNames.containsAll([
+                'java-docs',
                 'resolve-library-id',
                 'query-docs',
                 'search',
@@ -76,6 +77,19 @@ class NativeMcpContractSpec extends Specification {
         then:
         resolveResult.count >= 1
         libraries*.libraryId.contains('/spring-projects/spring-security')
+
+        when: 'query docs with high-level java-docs tool'
+        def javaDocs = successfulToolCall(session.id(), 'java-docs', [
+                query      : 'how do I configure csrf in spring security',
+                libraryName: 'spring security',
+                limit      : 3
+        ])
+        def javaDocIds = ((List<Map<String, Object>>) javaDocs.documents)*.id
+
+        then:
+        javaDocs.strategy == 'resolved-library'
+        javaDocs.resolvedLibraryId == '/spring-projects/spring-security'
+        javaDocIds.contains('spring-boot-csrf')
 
         when: 'query scoped docs'
         def scopedDocs = successfulToolCall(session.id(), 'query-docs', [

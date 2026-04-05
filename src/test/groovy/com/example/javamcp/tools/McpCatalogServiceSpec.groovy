@@ -37,8 +37,10 @@ class McpCatalogServiceSpec extends Specification {
         def manifest = service.manifest()
 
         then:
+        tools*.name().contains('java-docs')
         tools*.name().contains('query-docs')
         tools*.name().contains('migration-assistant')
+        rules*.id().contains('java-docs-direct')
         rules*.id().contains('java-library-docs')
         rules*.id().contains('project-migration-audit')
         resources*.resourceId() == ['spring-boot-csrf']

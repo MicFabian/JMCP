@@ -3,6 +3,7 @@ package com.example.javamcp.mcp;
 import com.example.javamcp.analysis.AstService;
 import com.example.javamcp.analysis.RuleEngineService;
 import com.example.javamcp.analysis.SymbolGraphService;
+import com.example.javamcp.model.JavaDocsToolResponse;
 import com.example.javamcp.model.LibraryDocsResponse;
 import com.example.javamcp.model.MigrationAssistantRequest;
 import com.example.javamcp.model.McpResourceDescriptor;
@@ -10,6 +11,7 @@ import com.example.javamcp.model.McpResourceResponse;
 import com.example.javamcp.model.PromptTemplate;
 import com.example.javamcp.model.ResolveLibraryResponse;
 import com.example.javamcp.model.SearchResponse;
+import com.example.javamcp.model.SearchResult;
 import com.example.javamcp.search.IndexLifecycleService;
 import com.example.javamcp.search.LuceneSearchService;
 import com.example.javamcp.search.SearchMode;
@@ -29,6 +31,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 @Component
 public class NativeMcpSpecificationFactory {
@@ -67,6 +70,7 @@ public class NativeMcpSpecificationFactory {
 
     public List<McpServerFeatures.SyncToolSpecification> toolSpecifications() {
         return List.of(
+                javaDocsTool(),
                 resolveLibraryIdTool(),
                 queryDocsTool(),
                 searchTool(),
@@ -171,17 +175,98 @@ public class NativeMcpSpecificationFactory {
         return specifications;
     }
 
+    private McpServerFeatures.SyncToolSpecification javaDocsTool() {
+        McpSchema.Tool tool = tool(
+                "java-docs",
+                "Java and Spring Docs",
+                "Retrieve Java, Spring, or OpenJDK documentation for usage, configuration, best-practice, or migration questions.",
+                Map.of(
+                        "query", stringProperty("Required natural-language question, e.g. 'spring security csrf requestMatchers'"),
+                        "libraryName", stringProperty("Optional library hint, e.g. 'spring security' or 'openjdk'"),
+                        "version", stringProperty("Optional exact version filter"),
+                        "tokens", integerProperty("Approximate token budget for context assembly"),
+                        "limit", integerProperty("Maximum number of documents"),
+                        "alpha", numberProperty("Hybrid rerank weight (0..1)")
+                ),
+                List.of("query"),
+                readOnlyToolAnnotations()
+        );
+
+        return new McpServerFeatures.SyncToolSpecification(tool, (exchange, request) -> safeToolCall(() -> {
+            Map<String, Object> args = request.arguments() == null ? Map.of() : request.arguments();
+            String query = requireNonBlank(firstNonBlank(stringArg(args, "query"), stringArg(args, "q")), "query");
+            String libraryName = stringArg(args, "libraryName");
+            String version = stringArg(args, "version");
+            Integer tokens = integerArg(args, "tokens");
+            Integer limit = integerArg(args, "limit");
+            Double alpha = doubleArg(args, "alpha");
+
+            ResolveLibraryResponse resolved = libraryToolsService.resolveLibraryId(query, libraryName, null, 3);
+            Optional<com.example.javamcp.model.LibraryCandidate> bestCandidate = resolved.libraries().stream().findFirst();
+
+            if (bestCandidate.isPresent()) {
+                var candidate = bestCandidate.get();
+                LibraryDocsResponse docs = libraryToolsService.queryDocs(
+                        candidate.libraryId(),
+                        query,
+                        tokens,
+                        limit,
+                        version,
+                        SearchMode.HYBRID,
+                        alpha
+                );
+                return success(new JavaDocsToolResponse(
+                        query,
+                        libraryName,
+                        docs.libraryId(),
+                        docs.libraryName(),
+                        "resolved-library",
+                        docs.count(),
+                        docs.context(),
+                        docs.documents()
+                ));
+            }
+
+            SearchResponse search = luceneSearchService.search(new SearchQuery(
+                    query,
+                    limit,
+                    version,
+                    List.of(),
+                    null,
+                    SearchMode.HYBRID,
+                    false
+            ));
+
+            List<com.example.javamcp.model.LibraryDoc> documents = search.results().stream()
+                    .map(this::toLibraryDoc)
+                    .toList();
+
+            return success(new JavaDocsToolResponse(
+                    query,
+                    libraryName,
+                    null,
+                    null,
+                    "global-search-fallback",
+                    documents.size(),
+                    "",
+                    documents
+            ));
+        }));
+    }
+
     private McpServerFeatures.SyncToolSpecification resolveLibraryIdTool() {
         McpSchema.Tool tool = tool(
                 "resolve-library-id",
-                "Resolve canonical library IDs from a natural language query.",
+                "Resolve Library ID",
+                "Resolve a canonical Java, Spring, or OpenJDK library identifier before scoped documentation retrieval.",
                 Map.of(
                         "query", stringProperty("Natural language query (preferred input)"),
                         "libraryName", stringProperty("Library name hint, e.g. spring security"),
                         "topic", stringProperty("Optional topic, e.g. csrf"),
                         "limit", integerProperty("Maximum number of candidates")
                 ),
-                List.of()
+                List.of(),
+                readOnlyToolAnnotations()
         );
 
         return new McpServerFeatures.SyncToolSpecification(tool, (exchange, request) -> safeToolCall(() -> {
@@ -199,7 +284,8 @@ public class NativeMcpSpecificationFactory {
     private McpServerFeatures.SyncToolSpecification queryDocsTool() {
         McpSchema.Tool tool = tool(
                 "query-docs",
-                "Retrieve deduplicated docs scoped to a canonical library id.",
+                "Query Library Docs",
+                "Retrieve deduplicated documentation chunks for a resolved Java, Spring, or OpenJDK library.",
                 Map.of(
                         "libraryId", stringProperty("Canonical library id, e.g. /spring-projects/spring-security"),
                         "query", stringProperty("Query within that library"),
@@ -209,7 +295,8 @@ public class NativeMcpSpecificationFactory {
                         "mode", enumProperty("Retrieval mode", List.of("HYBRID", "LEXICAL", "VECTOR")),
                         "alpha", numberProperty("Rerank weight (0..1)")
                 ),
-                List.of("libraryId")
+                List.of("libraryId"),
+                readOnlyToolAnnotations()
         );
 
         return new McpServerFeatures.SyncToolSpecification(tool, (exchange, request) -> safeToolCall(() -> {
@@ -232,7 +319,8 @@ public class NativeMcpSpecificationFactory {
     private McpServerFeatures.SyncToolSpecification searchTool() {
         McpSchema.Tool tool = tool(
                 "search",
-                "Hybrid lexical/vector search across indexed MCP content.",
+                "Search Indexed Java Content",
+                "Hybrid search across all indexed Java, Spring, and OpenJDK MCP content.",
                 Map.of(
                         "q", stringProperty("Search query"),
                         "limit", integerProperty("Maximum number of results"),
@@ -242,7 +330,8 @@ public class NativeMcpSpecificationFactory {
                         "mode", enumProperty("Retrieval mode", List.of("HYBRID", "LEXICAL", "VECTOR")),
                         "diagnostics", booleanProperty("Include diagnostics in response")
                 ),
-                List.of()
+                List.of(),
+                readOnlyToolAnnotations()
         );
 
         return new McpServerFeatures.SyncToolSpecification(tool, (exchange, request) -> safeToolCall(() -> {
@@ -265,12 +354,14 @@ public class NativeMcpSpecificationFactory {
     private McpServerFeatures.SyncToolSpecification analyzeTool() {
         McpSchema.Tool tool = tool(
                 "analyze",
-                "Run static rule analysis on Java code.",
+                "Analyze Java Code",
+                "Review Java code for best-practice issues and return concrete fix suggestions.",
                 Map.of(
                         "fileName", stringProperty("Optional file name"),
                         "code", stringProperty("Java code snippet")
                 ),
-                List.of("code")
+                List.of("code"),
+                readOnlyToolAnnotations()
         );
 
         return new McpServerFeatures.SyncToolSpecification(tool, (exchange, request) -> safeToolCall(() -> {
@@ -283,9 +374,11 @@ public class NativeMcpSpecificationFactory {
     private McpServerFeatures.SyncToolSpecification astTool() {
         McpSchema.Tool tool = tool(
                 "ast",
-                "Parse Java source and return a simplified AST view.",
+                "Parse Java AST",
+                "Parse Java source and return a simplified AST view for structural inspection.",
                 Map.of("code", stringProperty("Java code snippet")),
-                List.of("code")
+                List.of("code"),
+                readOnlyToolAnnotations()
         );
 
         return new McpServerFeatures.SyncToolSpecification(tool, (exchange, request) -> safeToolCall(() -> {
@@ -298,9 +391,11 @@ public class NativeMcpSpecificationFactory {
     private McpServerFeatures.SyncToolSpecification symbolsTool() {
         McpSchema.Tool tool = tool(
                 "symbols",
-                "Extract symbol graph nodes and edges from Java code.",
+                "Extract Java Symbols",
+                "Extract Java classes, methods, and call-graph edges for dependency and usage questions.",
                 Map.of("code", stringProperty("Java code snippet")),
-                List.of("code")
+                List.of("code"),
+                readOnlyToolAnnotations()
         );
 
         return new McpServerFeatures.SyncToolSpecification(tool, (exchange, request) -> safeToolCall(() -> {
@@ -313,7 +408,8 @@ public class NativeMcpSpecificationFactory {
     private McpServerFeatures.SyncToolSpecification migrationAssistantTool() {
         McpSchema.Tool tool = tool(
                 "migration-assistant",
-                "Assess Java/Spring migration readiness from build files and code snippets.",
+                "Java Migration Assistant",
+                "Assess Java and Spring Boot migration readiness, especially upgrades to Java 25 and Spring Boot 4.",
                 Map.of(
                         "buildFile", stringProperty("Build file content (Gradle/Maven)"),
                         "buildFilePath", stringProperty("Optional build file path, e.g. build.gradle"),
@@ -322,7 +418,8 @@ public class NativeMcpSpecificationFactory {
                         "targetSpringBootVersion", stringProperty("Target Spring Boot version (default 4.0.0)"),
                         "includeDocs", booleanProperty("When true, include reference docs in the response")
                 ),
-                List.of()
+                List.of(),
+                readOnlyToolAnnotations()
         );
 
         return new McpServerFeatures.SyncToolSpecification(tool, (exchange, request) -> safeToolCall(() -> {
@@ -342,9 +439,11 @@ public class NativeMcpSpecificationFactory {
     private McpServerFeatures.SyncToolSpecification indexStatsTool() {
         McpSchema.Tool tool = tool(
                 "index-stats",
-                "Return index statistics and last indexed timestamp.",
+                "Index Stats",
+                "Return index statistics and the last indexed timestamp.",
                 Map.of(),
-                List.of()
+                List.of(),
+                readOnlyToolAnnotations()
         );
 
         return new McpServerFeatures.SyncToolSpecification(tool, (exchange, request) ->
@@ -355,9 +454,11 @@ public class NativeMcpSpecificationFactory {
     private McpServerFeatures.SyncToolSpecification rebuildIndexTool() {
         McpSchema.Tool tool = tool(
                 "index-rebuild",
+                "Rebuild Index",
                 "Rebuild the Lucene index from ingested documents.",
                 Map.of(),
-                List.of()
+                List.of(),
+                stateChangingToolAnnotations()
         );
 
         return new McpServerFeatures.SyncToolSpecification(tool, (exchange, request) ->
@@ -368,9 +469,11 @@ public class NativeMcpSpecificationFactory {
     private McpServerFeatures.SyncToolSpecification manifestTool() {
         McpSchema.Tool tool = tool(
                 "manifest",
-                "Return MCP server catalog manifest.",
+                "MCP Manifest",
+                "Return the MCP server catalog manifest.",
                 Map.of(),
-                List.of()
+                List.of(),
+                readOnlyToolAnnotations()
         );
 
         return new McpServerFeatures.SyncToolSpecification(tool, (exchange, request) ->
@@ -438,12 +541,14 @@ public class NativeMcpSpecificationFactory {
     }
 
     private McpSchema.Tool tool(String name,
+                                String title,
                                 String description,
                                 Map<String, Object> properties,
-                                List<String> required) {
+                                List<String> required,
+                                McpSchema.ToolAnnotations annotations) {
         return McpSchema.Tool.builder()
                 .name(name)
-                .title(name)
+                .title(title)
                 .description(description)
                 .inputSchema(new McpSchema.JsonSchema(
                         "object",
@@ -453,7 +558,31 @@ public class NativeMcpSpecificationFactory {
                         null,
                         null
                 ))
+                .annotations(annotations)
                 .build();
+    }
+
+    private McpSchema.ToolAnnotations readOnlyToolAnnotations() {
+        return new McpSchema.ToolAnnotations(null, true, false, true, false, false);
+    }
+
+    private McpSchema.ToolAnnotations stateChangingToolAnnotations() {
+        return new McpSchema.ToolAnnotations(null, false, false, true, false, false);
+    }
+
+    private com.example.javamcp.model.LibraryDoc toLibraryDoc(SearchResult result) {
+        return new com.example.javamcp.model.LibraryDoc(
+                result.id(),
+                result.title(),
+                result.snippet(),
+                result.source(),
+                result.sourceUrl(),
+                result.version(),
+                result.score(),
+                result.score(),
+                result.score(),
+                List.of()
+        );
     }
 
     private Map<String, Object> stringProperty(String description) {

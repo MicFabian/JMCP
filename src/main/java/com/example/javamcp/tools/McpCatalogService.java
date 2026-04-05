@@ -27,6 +27,11 @@ public class McpCatalogService {
 
     private static final List<ToolDescriptor> TOOLS = List.of(
             new ToolDescriptor(
+                    "java-docs",
+                    "Retrieve Java, Spring, or OpenJDK docs for usage, configuration, API, best-practice, or migration questions.",
+                    "{\"query\":\"how do I configure spring security csrf requestMatchers\",\"libraryName\":\"spring security\",\"limit\":5}"
+            ),
+            new ToolDescriptor(
                     "resolve-library-id",
                     "Resolve canonical library IDs from a query (Context7-inspired).",
                     "{\"query\":\"spring security csrf\",\"limit\":5}"
@@ -59,6 +64,13 @@ public class McpCatalogService {
     );
 
     private static final List<ToolInvocationRule> TOOL_RULES = List.of(
+            new ToolInvocationRule(
+                    "java-docs-direct",
+                    "If the user asks how to use a Java or Spring framework feature, call java-docs directly before answering from memory.",
+                    List.of("how do i", "spring security", "spring boot", "jpa", "jakarta", "virtual threads"),
+                    "java-docs",
+                    110
+            ),
             new ToolInvocationRule(
                     "java-library-docs",
                     "If the user asks for framework/library usage or migration guidance, resolve the library first then query scoped docs.",

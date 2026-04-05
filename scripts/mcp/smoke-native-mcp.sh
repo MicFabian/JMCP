@@ -102,6 +102,10 @@ for i in $(seq 1 "${LOOPS}"); do
   assert_contains "${tools_body}" 'resolve-library-id'
   assert_contains "${tools_body}" 'query-docs'
   assert_contains "${tools_body}" 'search'
+  assert_contains "${tools_body}" 'java-docs'
+  assert_contains "${tools_body}" '"outputSchema"'
+  assert_contains "${tools_body}" '"readOnlyHint":true'
+  assert_contains "${tools_body}" '"additionalProperties":false'
 
   echo "[loop ${i}/${LOOPS}] resources/list + prompts/list"
   resources_headers="${tmp_dir}/resources-${i}.headers"
@@ -135,6 +139,19 @@ for i in $(seq 1 "${LOOPS}"); do
   }
   assert_contains "${search_body}" '"isError":false'
   assert_contains "${search_body}" 'spring-boot-csrf'
+
+  echo "[loop ${i}/${LOOPS}] tools/call java-docs"
+  docs_headers="${tmp_dir}/java-docs-${i}.headers"
+  docs_body="${tmp_dir}/java-docs-${i}.body"
+  request "${session_id}" '{"jsonrpc":"2.0","id":"5b","method":"tools/call","params":{"name":"java-docs","arguments":{"query":"how do I configure csrf in spring security","libraryName":"spring security","limit":3}}}' "${docs_headers}" "${docs_body}"
+  [[ "$(status_code_from_headers "${docs_headers}")" == "200" ]] || {
+    echo "tools/call(java-docs) failed"
+    cat "${docs_body}"
+    exit 1
+  }
+  assert_contains "${docs_body}" '"isError":false'
+  assert_contains "${docs_body}" '"resource_link"'
+  assert_contains "${docs_body}" 'mcp://docs/spring-boot-csrf'
 
   echo "[loop ${i}/${LOOPS}] tools/call analyze (negative)"
   analyze_headers="${tmp_dir}/analyze-${i}.headers"

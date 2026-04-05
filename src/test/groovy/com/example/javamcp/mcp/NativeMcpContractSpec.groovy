@@ -66,6 +66,12 @@ class NativeMcpContractSpec extends Specification {
                 'index-rebuild',
                 'manifest'
         ])
+        def javaDocsTool = tools.find { it.name == 'java-docs' } as Map<String, Object>
+        javaDocsTool.outputSchema != null
+        ((Map<String, Object>) javaDocsTool.inputSchema).additionalProperties == false
+        ((Map<String, Object>) javaDocsTool.annotations).readOnlyHint == true
+        def rebuildTool = tools.find { it.name == 'index-rebuild' } as Map<String, Object>
+        ((Map<String, Object>) rebuildTool.annotations).readOnlyHint == false
 
         when: 'resolve a library id'
         def resolveResult = successfulToolCall(session.id(), 'resolve-library-id', [
@@ -90,6 +96,27 @@ class NativeMcpContractSpec extends Specification {
         javaDocs.strategy == 'resolved-library'
         javaDocs.resolvedLibraryId == '/spring-projects/spring-security'
         javaDocIds.contains('spring-boot-csrf')
+
+        when: 'query docs with raw MCP response to inspect resource links'
+        def javaDocsRpc = rpc(session.id(), [
+                jsonrpc: '2.0',
+                id     : nextId(),
+                method : 'tools/call',
+                params : [
+                        name     : 'java-docs',
+                        arguments: [
+                                query      : 'how do I configure csrf in spring security',
+                                libraryName: 'spring security',
+                                limit      : 3
+                        ]
+                ]
+        ])
+        def javaDocsRpcResult = (Map<String, Object>) javaDocsRpc.result
+        def javaDocsContent = (List<Map<String, Object>>) javaDocsRpcResult.content
+
+        then:
+        javaDocsRpcResult.isError == false
+        javaDocsContent.find { it.type == 'resource_link' && it.uri == 'mcp://docs/spring-boot-csrf' } != null
 
         when: 'query scoped docs'
         def scopedDocs = successfulToolCall(session.id(), 'query-docs', [

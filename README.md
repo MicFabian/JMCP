@@ -347,26 +347,52 @@ Ready file:
 }
 ```
 
-### Codex config (CLI-managed)
+### Codex config (preferred: project-scoped)
 
-One-command setup script:
+Preferred setup writes a repo-local Codex config with deterministic auth and timeouts:
 
 ```bash
+export JMCP_API_KEY="<api-key>"
 ./scripts/mcp/setup-codex-mcp.sh
 ```
 
-Equivalent manual command:
+This writes:
+
+- [`.codex/config.toml`](/Users/mivi/IdeaProjects/jmcp/.codex/config.toml)
+
+Default behavior:
+
+- enables `jmcp-prod`
+- authenticates with `X-API-Key` from `JMCP_API_KEY`
+- keeps `jmcp-local` available but disabled
+
+Manual project config example:
+
+```toml
+[mcp_servers.jmcp-prod]
+url = "http://94.16.111.94:30739/mcp"
+enabled = true
+env_http_headers = { "X-API-Key" = "JMCP_API_KEY" }
+tool_timeout_sec = 60
+
+[mcp_servers.jmcp-local]
+url = "http://127.0.0.1:8080/mcp"
+enabled = false
+tool_timeout_sec = 60
+```
+
+Fallback global CLI command:
 
 ```bash
 codex mcp add jmcp-local \
   --url http://127.0.0.1:8080/mcp
 ```
 
-Verify:
+Use the CLI path only if you explicitly want a global MCP entry. For this repository, the project config is more reliable because it supports `env_http_headers` and keeps the setup tied to the workspace.
 
-```bash
-codex mcp list --json
-```
+Then fully restart Codex from this repository.
+
+Note: in local testing, `codex mcp list --json` continued to reflect the global config rather than the repo-local `.codex/config.toml`. Treat the project file as the source of truth for workspace sessions.
 
 If your Codex build requires explicit remote MCP enablement, run with:
 
@@ -383,7 +409,7 @@ codex mcp add jmcp-prod \
   --url https://jmcp.example.com/mcp
 ```
 
-If your cloud JMCP requires auth, set env vars before starting the MCP client:
+If your cloud JMCP requires auth, either use the repo-local `.codex/config.toml` flow above or set env vars before starting the MCP client:
 
 ```bash
 export JMCP_BEARER_TOKEN=<MCP_API_KEY>
@@ -391,6 +417,10 @@ codex mcp add jmcp-prod \
   --url https://jmcp.example.com/mcp \
   --bearer-token-env-var JMCP_BEARER_TOKEN
 ```
+
+Research notes and rationale:
+
+- [`docs/codex-mcp-optimization.md`](/Users/mivi/IdeaProjects/jmcp/docs/codex-mcp-optimization.md)
 
 ### Manual MCP smoke check
 

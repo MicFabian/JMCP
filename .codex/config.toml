@@ -1,0 +1,13 @@
+# Project-scoped Codex MCP config for JMCP.
+# Export JMCP_API_KEY before launching Codex.
+
+[mcp_servers.jmcp-prod]
+url = "http://94.16.111.94:30739/mcp"
+enabled = true
+env_http_headers = { "X-API-Key" = "JMCP_API_KEY" }
+tool_timeout_sec = 60
+
+[mcp_servers.jmcp-local]
+url = "http://127.0.0.1:8080/mcp"
+enabled = false
+tool_timeout_sec = 60

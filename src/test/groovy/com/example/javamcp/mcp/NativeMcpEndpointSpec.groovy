@@ -81,6 +81,10 @@ class NativeMcpEndpointSpec extends Specification {
         result != null
         def tools = (List<Map<String, Object>>) result.get('tools')
         tools*.name.containsAll(['java-docs', 'resolve-library-id', 'query-docs', 'search', 'analyze', 'symbols', 'migration-assistant'])
+        def javaDocs = tools.find { it.name == 'java-docs' } as Map<String, Object>
+        javaDocs.outputSchema != null
+        ((Map<String, Object>) javaDocs.inputSchema).additionalProperties == false
+        ((Map<String, Object>) javaDocs.annotations).readOnlyHint == true
     }
 
     private String url(String path) {

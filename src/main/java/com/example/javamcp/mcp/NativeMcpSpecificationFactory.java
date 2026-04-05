@@ -189,6 +189,7 @@ public class NativeMcpSpecificationFactory {
                         "alpha", numberProperty("Hybrid rerank weight (0..1)")
                 ),
                 List.of("query"),
+                javaDocsOutputSchema(),
                 readOnlyToolAnnotations()
         );
 
@@ -266,6 +267,7 @@ public class NativeMcpSpecificationFactory {
                         "limit", integerProperty("Maximum number of candidates")
                 ),
                 List.of(),
+                resolveLibraryOutputSchema(),
                 readOnlyToolAnnotations()
         );
 
@@ -296,6 +298,7 @@ public class NativeMcpSpecificationFactory {
                         "alpha", numberProperty("Rerank weight (0..1)")
                 ),
                 List.of("libraryId"),
+                libraryDocsOutputSchema(),
                 readOnlyToolAnnotations()
         );
 
@@ -331,6 +334,7 @@ public class NativeMcpSpecificationFactory {
                         "diagnostics", booleanProperty("Include diagnostics in response")
                 ),
                 List.of(),
+                searchOutputSchema(),
                 readOnlyToolAnnotations()
         );
 
@@ -361,6 +365,7 @@ public class NativeMcpSpecificationFactory {
                         "code", stringProperty("Java code snippet")
                 ),
                 List.of("code"),
+                analyzeOutputSchema(),
                 readOnlyToolAnnotations()
         );
 
@@ -378,6 +383,7 @@ public class NativeMcpSpecificationFactory {
                 "Parse Java source and return a simplified AST view for structural inspection.",
                 Map.of("code", stringProperty("Java code snippet")),
                 List.of("code"),
+                astOutputSchema(),
                 readOnlyToolAnnotations()
         );
 
@@ -395,6 +401,7 @@ public class NativeMcpSpecificationFactory {
                 "Extract Java classes, methods, and call-graph edges for dependency and usage questions.",
                 Map.of("code", stringProperty("Java code snippet")),
                 List.of("code"),
+                symbolsOutputSchema(),
                 readOnlyToolAnnotations()
         );
 
@@ -419,6 +426,7 @@ public class NativeMcpSpecificationFactory {
                         "includeDocs", booleanProperty("When true, include reference docs in the response")
                 ),
                 List.of(),
+                migrationAssistantOutputSchema(),
                 readOnlyToolAnnotations()
         );
 
@@ -443,6 +451,7 @@ public class NativeMcpSpecificationFactory {
                 "Return index statistics and the last indexed timestamp.",
                 Map.of(),
                 List.of(),
+                indexStatsOutputSchema(),
                 readOnlyToolAnnotations()
         );
 
@@ -458,6 +467,7 @@ public class NativeMcpSpecificationFactory {
                 "Rebuild the Lucene index from ingested documents.",
                 Map.of(),
                 List.of(),
+                indexStatsOutputSchema(),
                 stateChangingToolAnnotations()
         );
 
@@ -473,6 +483,7 @@ public class NativeMcpSpecificationFactory {
                 "Return the MCP server catalog manifest.",
                 Map.of(),
                 List.of(),
+                manifestOutputSchema(),
                 readOnlyToolAnnotations()
         );
 
@@ -505,11 +516,33 @@ public class NativeMcpSpecificationFactory {
     }
 
     private McpSchema.CallToolResult success(Object payload) {
-        return McpSchema.CallToolResult.builder()
+        return success(payload, resourceLinksForPayload(payload));
+    }
+
+    private McpSchema.CallToolResult success(Object payload, List<McpSchema.Content> extraContent) {
+        McpSchema.CallToolResult.Builder builder = McpSchema.CallToolResult.builder()
                 .isError(false)
                 .structuredContent(payload)
-                .addTextContent(toJson(payload))
-                .build();
+                .addTextContent(toJson(payload));
+        if (extraContent != null) {
+            for (McpSchema.Content content : extraContent) {
+                builder.addContent(content);
+            }
+        }
+        return builder.build();
+    }
+
+    private List<McpSchema.Content> resourceLinksForPayload(Object payload) {
+        if (payload instanceof JavaDocsToolResponse response) {
+            return resourceLinksForDocs(response.documents());
+        }
+        if (payload instanceof LibraryDocsResponse response) {
+            return resourceLinksForDocs(response.documents());
+        }
+        if (payload instanceof SearchResponse response) {
+            return resourceLinksForDocs(response.results().stream().map(this::toLibraryDoc).toList());
+        }
+        return List.of();
     }
 
     private String toJson(Object value) {
@@ -545,8 +578,9 @@ public class NativeMcpSpecificationFactory {
                                 String description,
                                 Map<String, Object> properties,
                                 List<String> required,
+                                Map<String, Object> outputSchema,
                                 McpSchema.ToolAnnotations annotations) {
-        return McpSchema.Tool.builder()
+        McpSchema.Tool.Builder builder = McpSchema.Tool.builder()
                 .name(name)
                 .title(title)
                 .description(description)
@@ -554,12 +588,15 @@ public class NativeMcpSpecificationFactory {
                         "object",
                         properties,
                         required,
-                        true,
+                        false,
                         null,
                         null
                 ))
-                .annotations(annotations)
-                .build();
+                .annotations(annotations);
+        if (outputSchema != null && !outputSchema.isEmpty()) {
+            builder.outputSchema(outputSchema);
+        }
+        return builder.build();
     }
 
     private McpSchema.ToolAnnotations readOnlyToolAnnotations() {
@@ -568,6 +605,33 @@ public class NativeMcpSpecificationFactory {
 
     private McpSchema.ToolAnnotations stateChangingToolAnnotations() {
         return new McpSchema.ToolAnnotations(null, false, false, true, false, false);
+    }
+
+    private List<McpSchema.Content> resourceLinksForDocs(List<com.example.javamcp.model.LibraryDoc> documents) {
+        if (documents == null || documents.isEmpty()) {
+            return List.of();
+        }
+        List<McpSchema.Content> links = new ArrayList<>();
+        for (com.example.javamcp.model.LibraryDoc document : documents.stream().limit(5).toList()) {
+            String id = blankToNull(document.id());
+            if (id == null) {
+                continue;
+            }
+            String description = firstNonBlank(
+                    blankToNull(document.source()),
+                    blankToNull(document.sourceUrl()),
+                    blankToNull(document.excerpt())
+            );
+            links.add(McpSchema.ResourceLink.builder()
+                    .name(id)
+                    .title(blankToNull(document.title()))
+                    .uri("mcp://docs/" + id)
+                    .description(description)
+                    .mimeType(DEFAULT_RESOURCE_MIME_TYPE)
+                    .annotations(new McpSchema.Annotations(List.of(McpSchema.Role.ASSISTANT), 0.95))
+                    .build());
+        }
+        return links;
     }
 
     private com.example.javamcp.model.LibraryDoc toLibraryDoc(SearchResult result) {
@@ -587,6 +651,10 @@ public class NativeMcpSpecificationFactory {
 
     private Map<String, Object> stringProperty(String description) {
         return property("string", description);
+    }
+
+    private Map<String, Object> nullableStringProperty(String description) {
+        return property(List.of("string", "null"), description);
     }
 
     private Map<String, Object> integerProperty(String description) {
@@ -617,7 +685,302 @@ public class NativeMcpSpecificationFactory {
         return property;
     }
 
-    private Map<String, Object> property(String type, String description) {
+    private Map<String, Object> objectProperty(String description,
+                                               Map<String, Object> properties,
+                                               List<String> required) {
+        return objectProperty("object", description, properties, required);
+    }
+
+    private Map<String, Object> nullableObjectProperty(String description,
+                                                       Map<String, Object> properties,
+                                                       List<String> required) {
+        return objectProperty(List.of("object", "null"), description, properties, required);
+    }
+
+    private Map<String, Object> objectProperty(Object type,
+                                               String description,
+                                               Map<String, Object> properties,
+                                               List<String> required) {
+        Map<String, Object> property = new LinkedHashMap<>();
+        property.put("type", type);
+        property.put("description", description);
+        property.put("properties", properties);
+        property.put("required", required);
+        property.put("additionalProperties", false);
+        return property;
+    }
+
+    private Map<String, Object> arrayProperty(String description, Map<String, Object> items) {
+        Map<String, Object> property = new LinkedHashMap<>();
+        property.put("type", "array");
+        property.put("description", description);
+        property.put("items", items);
+        return property;
+    }
+
+    private Map<String, Object> outputSchema(Map<String, Object> properties, List<String> required) {
+        Map<String, Object> schema = new LinkedHashMap<>();
+        schema.put("type", "object");
+        schema.put("properties", properties);
+        schema.put("required", required);
+        schema.put("additionalProperties", false);
+        return schema;
+    }
+
+    private Map<String, Object> javaDocsOutputSchema() {
+        return outputSchema(Map.of(
+                "query", stringProperty("Resolved query"),
+                "libraryHint", nullableStringProperty("Optional library hint from the caller"),
+                "resolvedLibraryId", nullableStringProperty("Resolved canonical library id"),
+                "resolvedLibraryName", nullableStringProperty("Resolved library name"),
+                "strategy", stringProperty("Retrieval strategy used"),
+                "count", integerProperty("Returned document count"),
+                "context", stringProperty("Merged textual context"),
+                "documents", arrayProperty("Retrieved documents", libraryDocSchema())
+        ), List.of("query", "strategy", "count", "context", "documents"));
+    }
+
+    private Map<String, Object> resolveLibraryOutputSchema() {
+        return outputSchema(Map.of(
+                "query", stringProperty("Original query"),
+                "count", integerProperty("Candidate count"),
+                "libraries", arrayProperty("Resolved library candidates", libraryCandidateSchema())
+        ), List.of("query", "count", "libraries"));
+    }
+
+    private Map<String, Object> libraryDocsOutputSchema() {
+        return outputSchema(Map.of(
+                "libraryId", stringProperty("Canonical library id"),
+                "libraryName", stringProperty("Resolved library name"),
+                "topic", nullableStringProperty("Requested topic"),
+                "strategy", stringProperty("Retrieval strategy"),
+                "alpha", numberProperty("Hybrid rerank alpha"),
+                "count", integerProperty("Returned document count"),
+                "approxTokens", integerProperty("Approximate token count"),
+                "context", stringProperty("Merged textual context"),
+                "documents", arrayProperty("Retrieved documents", libraryDocSchema())
+        ), List.of("libraryId", "libraryName", "strategy", "alpha", "count", "approxTokens", "context", "documents"));
+    }
+
+    private Map<String, Object> searchOutputSchema() {
+        return outputSchema(Map.of(
+                "query", stringProperty("Executed search query"),
+                "count", integerProperty("Result count"),
+                "results", arrayProperty("Matched documents", searchResultSchema()),
+                "diagnostics", nullableObjectProperty("Optional search diagnostics", Map.of(
+                        "mode", stringProperty("Search mode"),
+                        "expandedQuery", stringProperty("Expanded query"),
+                        "lexicalCandidates", integerProperty("Lexical candidate count"),
+                        "vectorCandidates", integerProperty("Vector candidate count"),
+                        "elapsedMillis", integerProperty("Elapsed time in milliseconds")
+                ), List.of("mode", "expandedQuery", "lexicalCandidates", "vectorCandidates", "elapsedMillis"))
+        ), List.of("query", "count", "results"));
+    }
+
+    private Map<String, Object> analyzeOutputSchema() {
+        return outputSchema(Map.of(
+                "file", nullableStringProperty("Analyzed file name"),
+                "issueCount", integerProperty("Issue count"),
+                "issues", arrayProperty("Detected issues", ruleIssueSchema())
+        ), List.of("issueCount", "issues"));
+    }
+
+    private Map<String, Object> astOutputSchema() {
+        return outputSchema(Map.of(
+                "classCount", integerProperty("Parsed class count"),
+                "classes", arrayProperty("Parsed classes", astClassSchema())
+        ), List.of("classCount", "classes"));
+    }
+
+    private Map<String, Object> symbolsOutputSchema() {
+        return outputSchema(Map.of(
+                "nodeCount", integerProperty("Node count"),
+                "edgeCount", integerProperty("Edge count"),
+                "nodes", arrayProperty("Symbol nodes", symbolNodeSchema()),
+                "edges", arrayProperty("Symbol edges", symbolEdgeSchema())
+        ), List.of("nodeCount", "edgeCount", "nodes", "edges"));
+    }
+
+    private Map<String, Object> migrationAssistantOutputSchema() {
+        return outputSchema(Map.of(
+                "buildTool", nullableStringProperty("Detected build tool"),
+                "detectedJavaVersion", nullableStringProperty("Detected Java version"),
+                "targetJavaVersion", nullableStringProperty("Target Java version"),
+                "detectedSpringBootVersion", nullableStringProperty("Detected Spring Boot version"),
+                "targetSpringBootVersion", nullableStringProperty("Target Spring Boot version"),
+                "issueCount", integerProperty("Migration issue count"),
+                "findings", arrayProperty("Migration findings", migrationFindingSchema()),
+                "recommendedActions", arrayProperty("Recommended actions", Map.of("type", "string")),
+                "references", arrayProperty("Supporting references", migrationReferenceSchema())
+        ), List.of("issueCount", "findings", "recommendedActions", "references"));
+    }
+
+    private Map<String, Object> indexStatsOutputSchema() {
+        return outputSchema(Map.of(
+                "documentCount", integerProperty("Indexed document count"),
+                "versions", arrayProperty("Known versions", Map.of("type", "string")),
+                "tags", arrayProperty("Known tags", Map.of("type", "string")),
+                "sources", arrayProperty("Known sources", Map.of("type", "string")),
+                "lastIndexedAt", stringProperty("Last index timestamp")
+        ), List.of("documentCount", "versions", "tags", "sources", "lastIndexedAt"));
+    }
+
+    private Map<String, Object> manifestOutputSchema() {
+        return outputSchema(Map.of(
+                "serverName", stringProperty("Server name"),
+                "version", stringProperty("Manifest version"),
+                "generatedAt", stringProperty("Manifest generation timestamp"),
+                "tools", arrayProperty("Published tools", toolDescriptorSchema()),
+                "toolRules", arrayProperty("Tool invocation rules", toolRuleSchema()),
+                "resources", arrayProperty("Published resources", resourceDescriptorSchema()),
+                "prompts", arrayProperty("Published prompts", promptTemplateSchema())
+        ), List.of("serverName", "version", "generatedAt", "tools", "toolRules", "resources", "prompts"));
+    }
+
+    private Map<String, Object> libraryDocSchema() {
+        return objectProperty("Library document", Map.of(
+                "id", stringProperty("Document id"),
+                "title", nullableStringProperty("Document title"),
+                "excerpt", nullableStringProperty("Document excerpt"),
+                "source", nullableStringProperty("Source name"),
+                "sourceUrl", nullableStringProperty("Source URL"),
+                "version", nullableStringProperty("Document version"),
+                "score", numberProperty("Combined score"),
+                "retrievalScore", numberProperty("Retrieval score"),
+                "rerankScore", numberProperty("Rerank score"),
+                "matchedTerms", arrayProperty("Matched terms", Map.of("type", "string"))
+        ), List.of("id", "score", "retrievalScore", "rerankScore", "matchedTerms"));
+    }
+
+    private Map<String, Object> libraryCandidateSchema() {
+        return objectProperty("Library candidate", Map.of(
+                "libraryId", stringProperty("Canonical library id"),
+                "name", stringProperty("Library name"),
+                "summary", nullableStringProperty("Library summary"),
+                "documentCount", integerProperty("Document count"),
+                "versions", arrayProperty("Known versions", Map.of("type", "string")),
+                "sources", arrayProperty("Known sources", Map.of("type", "string")),
+                "score", numberProperty("Candidate score")
+        ), List.of("libraryId", "name", "documentCount", "versions", "sources", "score"));
+    }
+
+    private Map<String, Object> searchResultSchema() {
+        return objectProperty("Search result", Map.of(
+                "id", stringProperty("Result id"),
+                "title", nullableStringProperty("Result title"),
+                "snippet", nullableStringProperty("Result snippet"),
+                "source", nullableStringProperty("Source name"),
+                "sourceUrl", nullableStringProperty("Source URL"),
+                "version", nullableStringProperty("Document version"),
+                "score", numberProperty("Result score")
+        ), List.of("id", "score"));
+    }
+
+    private Map<String, Object> ruleIssueSchema() {
+        return objectProperty("Rule issue", Map.of(
+                "rule", stringProperty("Rule id"),
+                "line", integerProperty("Line number"),
+                "severity", stringProperty("Issue severity"),
+                "message", stringProperty("Issue message"),
+                "suggestion", stringProperty("Suggested fix")
+        ), List.of("rule", "line", "severity", "message", "suggestion"));
+    }
+
+    private Map<String, Object> astClassSchema() {
+        return objectProperty("AST class", Map.of(
+                "name", stringProperty("Class name"),
+                "packageName", nullableStringProperty("Package name"),
+                "methods", arrayProperty("Declared methods", astMethodSchema())
+        ), List.of("name", "packageName", "methods"));
+    }
+
+    private Map<String, Object> astMethodSchema() {
+        return objectProperty("AST method", Map.of(
+                "name", stringProperty("Method name"),
+                "signature", stringProperty("Method signature"),
+                "returnType", nullableStringProperty("Return type"),
+                "javadoc", nullableStringProperty("Method javadoc")
+        ), List.of("name", "signature"));
+    }
+
+    private Map<String, Object> symbolNodeSchema() {
+        return objectProperty("Symbol node", Map.of(
+                "id", stringProperty("Node id"),
+                "type", stringProperty("Node type"),
+                "name", stringProperty("Simple name"),
+                "qualifiedName", stringProperty("Qualified name")
+        ), List.of("id", "type", "name", "qualifiedName"));
+    }
+
+    private Map<String, Object> symbolEdgeSchema() {
+        return objectProperty("Symbol edge", Map.of(
+                "from", stringProperty("Source node id"),
+                "to", stringProperty("Target node id"),
+                "relation", stringProperty("Edge relation")
+        ), List.of("from", "to", "relation"));
+    }
+
+    private Map<String, Object> migrationFindingSchema() {
+        return objectProperty("Migration finding", Map.of(
+                "code", stringProperty("Finding code"),
+                "severity", stringProperty("Finding severity"),
+                "message", stringProperty("Finding message"),
+                "recommendation", stringProperty("Recommendation"),
+                "detectedValue", nullableStringProperty("Detected value"),
+                "targetValue", nullableStringProperty("Target value")
+        ), List.of("code", "severity", "message", "recommendation"));
+    }
+
+    private Map<String, Object> migrationReferenceSchema() {
+        return objectProperty("Migration reference", Map.of(
+                "libraryId", nullableStringProperty("Library id"),
+                "title", stringProperty("Reference title"),
+                "sourceUrl", stringProperty("Reference URL"),
+                "version", nullableStringProperty("Reference version"),
+                "score", numberProperty("Reference score")
+        ), List.of("title", "sourceUrl", "score"));
+    }
+
+    private Map<String, Object> toolDescriptorSchema() {
+        return objectProperty("Tool descriptor", Map.of(
+                "name", stringProperty("Tool name"),
+                "description", stringProperty("Tool description"),
+                "inputSchemaHint", stringProperty("Input schema hint")
+        ), List.of("name", "description", "inputSchemaHint"));
+    }
+
+    private Map<String, Object> toolRuleSchema() {
+        return objectProperty("Tool invocation rule", Map.of(
+                "id", stringProperty("Rule id"),
+                "description", stringProperty("Rule description"),
+                "triggerPatterns", arrayProperty("Trigger patterns", Map.of("type", "string")),
+                "toolName", stringProperty("Target tool name"),
+                "priority", integerProperty("Rule priority")
+        ), List.of("id", "description", "triggerPatterns", "toolName", "priority"));
+    }
+
+    private Map<String, Object> promptTemplateSchema() {
+        return objectProperty("Prompt template", Map.of(
+                "id", stringProperty("Prompt id"),
+                "name", stringProperty("Prompt name"),
+                "description", stringProperty("Prompt description"),
+                "template", stringProperty("Prompt template")
+        ), List.of("id", "name", "description", "template"));
+    }
+
+    private Map<String, Object> resourceDescriptorSchema() {
+        return objectProperty("Resource descriptor", Map.of(
+                "resourceId", stringProperty("Resource id"),
+                "uri", stringProperty("Resource URI"),
+                "title", nullableStringProperty("Resource title"),
+                "version", nullableStringProperty("Resource version"),
+                "tags", arrayProperty("Resource tags", Map.of("type", "string")),
+                "source", nullableStringProperty("Source name"),
+                "sourceUrl", nullableStringProperty("Source URL")
+        ), List.of("resourceId", "uri", "tags"));
+    }
+
+    private Map<String, Object> property(Object type, String description) {
         Map<String, Object> property = new LinkedHashMap<>();
         property.put("type", type);
         property.put("description", description);

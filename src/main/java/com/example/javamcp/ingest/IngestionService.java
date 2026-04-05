@@ -2,6 +2,7 @@ package com.example.javamcp.ingest;
 
 import com.example.javamcp.model.IngestedDocument;
 import com.example.javamcp.model.IngestionSourceStatus;
+import com.example.javamcp.observability.OperationObservationService;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -20,14 +21,17 @@ public class IngestionService {
     private final ResourceDocumentLoader resourceDocumentLoader;
     private final RemoteDocumentLoader remoteDocumentLoader;
     private final IngestionProperties ingestionProperties;
+    private final OperationObservationService operationObservationService;
     private final AtomicReference<List<IngestedDocument>> cache = new AtomicReference<>();
 
     public IngestionService(ResourceDocumentLoader resourceDocumentLoader,
                             RemoteDocumentLoader remoteDocumentLoader,
-                            IngestionProperties ingestionProperties) {
+                            IngestionProperties ingestionProperties,
+                            OperationObservationService operationObservationService) {
         this.resourceDocumentLoader = resourceDocumentLoader;
         this.remoteDocumentLoader = remoteDocumentLoader;
         this.ingestionProperties = ingestionProperties;
+        this.operationObservationService = operationObservationService;
     }
 
     public List<IngestedDocument> loadNormalizedDocuments() {
@@ -39,6 +43,15 @@ public class IngestionService {
     }
 
     public synchronized List<IngestedDocument> reloadNormalizedDocuments() {
+        return operationObservationService.observe(
+                "jmcp.ingest.reload",
+                "jmcp ingestion reload",
+                Map.of("remote.source.count", String.valueOf(ingestionProperties.getRemoteSources().size())),
+                this::reloadNormalizedDocumentsInternal
+        );
+    }
+
+    private synchronized List<IngestedDocument> reloadNormalizedDocumentsInternal() {
         List<IngestedDocument> loaded = new ArrayList<>();
         loaded.addAll(resourceDocumentLoader.loadClasspathDocuments());
         loaded.addAll(remoteDocumentLoader.loadRemoteDocuments(ingestionProperties.getRemoteSources()));

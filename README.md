@@ -608,3 +608,8 @@ gantt
 - JVM commands use `--enable-native-access=ALL-UNNAMED` for Lucene native-access compatibility on Java 25.
 - Virtual threads are enabled (`spring.threads.virtual.enabled=true`) for request handling and async workloads.
 - Ingested docs are normalized and cached in-memory; use `POST /api/index/rebuild` to force reload + reindex.
+- Spring-specific production defaults now include validated configuration properties, RFC 9457 `ProblemDetail` responses, Micrometer observations around ingestion/search/tool operations, and `ContextPropagatingTaskDecorator` for async context propagation.
+- Startup rebuild and scheduled refresh components are conditionally registered from properties so disabled jobs do not create active beans.
+- Architectural boundaries are enforced in tests with ArchUnit while Spring Modulith's Boot 4 line matures.
+
+See [Spring Architecture Notes](/Users/mivi/IdeaProjects/jmcp/docs/spring-architecture.md) for the rationale and source links behind these choices.

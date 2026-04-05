@@ -2,6 +2,9 @@ package com.example.javamcp.search
 
 import com.example.javamcp.ingest.IngestionService
 import com.example.javamcp.model.IngestedDocument
+import com.example.javamcp.observability.OperationObservationService
+import io.micrometer.observation.ObservationRegistry
+import org.springframework.scheduling.concurrent.ConcurrentTaskExecutor
 import spock.lang.Specification
 
 import java.nio.file.Files
@@ -30,7 +33,8 @@ class IndexLifecycleServiceSpec extends Specification {
                 new EmbeddingService(),
                 new QueryExpansionService(searchProperties),
                 searchProperties,
-                executor
+                new ConcurrentTaskExecutor(executor),
+                new OperationObservationService(ObservationRegistry.create())
         )
 
         def ingestion = Stub(IngestionService) {
@@ -40,7 +44,7 @@ class IndexLifecycleServiceSpec extends Specification {
             ]
         }
 
-        def lifecycle = new IndexLifecycleService(ingestion, lucene)
+        def lifecycle = new IndexLifecycleService(ingestion, lucene, new OperationObservationService(ObservationRegistry.create()))
 
         when:
         def stats = lifecycle.rebuildIndex()

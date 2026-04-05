@@ -1,11 +1,16 @@
 package com.example.javamcp.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
+
+import jakarta.validation.constraints.NotBlank;
 
 @ConfigurationProperties(prefix = "mcp.security")
+@Validated
 public class McpSecurityProperties {
 
     private String apiKey = "";
+    @NotBlank
     private String headerName = "X-API-Key";
 
     public String getApiKey() {

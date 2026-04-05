@@ -6,8 +6,10 @@ import com.example.javamcp.model.LibraryDoc
 import com.example.javamcp.model.LibraryDocsResponse
 import com.example.javamcp.model.MigrationAssistantRequest
 import com.example.javamcp.model.RuleIssue
+import com.example.javamcp.observability.OperationObservationService
 import com.example.javamcp.search.SearchMode
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
+import io.micrometer.observation.ObservationRegistry
 import spock.lang.Specification
 
 class MigrationAssistantServiceSpec extends Specification {
@@ -48,7 +50,7 @@ class MigrationAssistantServiceSpec extends Specification {
             }
         }
 
-        def service = new MigrationAssistantService(rules, libraries, new SimpleMeterRegistry())
+        def service = new MigrationAssistantService(rules, libraries, new SimpleMeterRegistry(), new OperationObservationService(ObservationRegistry.create()))
         def request = new MigrationAssistantRequest(
                 """plugins {
   id 'org.springframework.boot' version '3.3.2'
@@ -88,7 +90,7 @@ java {
             analyze(_, _) >> new AnalyzeResponse('Snippet.java', 0, [])
         }
         def libraries = Stub(LibraryToolsService)
-        def service = new MigrationAssistantService(rules, libraries, new SimpleMeterRegistry())
+        def service = new MigrationAssistantService(rules, libraries, new SimpleMeterRegistry(), new OperationObservationService(ObservationRegistry.create()))
 
         when:
         def response = service.assess(new MigrationAssistantRequest(
@@ -110,7 +112,7 @@ java {
 
     def 'should reject empty migration requests'() {
         given:
-        def service = new MigrationAssistantService(Stub(RuleEngineService), Stub(LibraryToolsService), new SimpleMeterRegistry())
+        def service = new MigrationAssistantService(Stub(RuleEngineService), Stub(LibraryToolsService), new SimpleMeterRegistry(), new OperationObservationService(ObservationRegistry.create()))
 
         when:
         service.assess(new MigrationAssistantRequest(null, null, null, null, null, null))

@@ -4,10 +4,12 @@ import com.example.javamcp.ingest.IngestionService
 import com.example.javamcp.model.IngestedDocument
 import com.example.javamcp.model.SearchResponse
 import com.example.javamcp.model.SearchResult
+import com.example.javamcp.observability.OperationObservationService
 import com.example.javamcp.search.LuceneSearchService
 import com.example.javamcp.search.QueryExpansionService
 import com.example.javamcp.search.SearchProperties
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
+import io.micrometer.observation.ObservationRegistry
 import spock.lang.Specification
 
 class LibraryToolsServiceSpec extends Specification {
@@ -37,7 +39,7 @@ class LibraryToolsServiceSpec extends Specification {
             ]
         }
         def lucene = Stub(LuceneSearchService)
-        def service = new LibraryToolsService(ingestion, lucene, new QueryExpansionService(new SearchProperties()), new SimpleMeterRegistry())
+        def service = new LibraryToolsService(ingestion, lucene, new QueryExpansionService(new SearchProperties()), new SimpleMeterRegistry(), new OperationObservationService(ObservationRegistry.create()))
 
         when:
         def response = service.resolveLibraryId('spring security csrf', 'spring security', 'csrf', 3)
@@ -78,7 +80,7 @@ class LibraryToolsServiceSpec extends Specification {
                     null
             )
         }
-        def service = new LibraryToolsService(ingestion, lucene, new QueryExpansionService(new SearchProperties()), new SimpleMeterRegistry())
+        def service = new LibraryToolsService(ingestion, lucene, new QueryExpansionService(new SearchProperties()), new SimpleMeterRegistry(), new OperationObservationService(ObservationRegistry.create()))
 
         when:
         def response = service.queryDocs('/spring-projects/spring-security', 'csrf', 1000, 5, '4.0.0', null, 0.65d)

@@ -1,19 +1,31 @@
 package com.example.javamcp.search;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
 
+import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Min;
 import java.util.List;
 import java.util.Map;
 
 @ConfigurationProperties(prefix = "mcp.search")
+@Validated
 public class SearchProperties {
 
+    @Min(1)
     private int defaultLimit = 10;
+    @Min(1)
     private int maxLimit = 50;
+    @Min(1)
     private int candidateMultiplier = 3;
+    @Min(1)
     private int rrfK = 60;
+    @DecimalMin("0.0")
     private double lexicalWeight = 1.0;
+    @DecimalMin("0.0")
     private double vectorWeight = 0.9;
+    @DecimalMin("0.0")
     private double exactVersionBoost = 0.20;
     private Map<String, List<String>> synonyms = Map.of(
             "csrf", List.of("cross site request forgery", "xsrf"),
@@ -83,5 +95,10 @@ public class SearchProperties {
 
     public void setSynonyms(Map<String, List<String>> synonyms) {
         this.synonyms = synonyms == null ? Map.of() : synonyms;
+    }
+
+    @AssertTrue(message = "mcp.search.default-limit must be less than or equal to mcp.search.max-limit")
+    public boolean isDefaultLimitWithinMaxLimit() {
+        return defaultLimit <= maxLimit;
     }
 }

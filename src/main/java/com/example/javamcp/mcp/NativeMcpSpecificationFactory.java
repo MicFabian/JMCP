@@ -15,6 +15,7 @@ import com.example.javamcp.model.SearchResult;
 import com.example.javamcp.search.IndexLifecycleService;
 import com.example.javamcp.search.LuceneSearchService;
 import com.example.javamcp.search.SearchMode;
+import com.example.javamcp.search.SearchModeResolver;
 import com.example.javamcp.search.SearchQuery;
 import com.example.javamcp.tools.LibraryToolsService;
 import com.example.javamcp.tools.MigrationAssistantService;
@@ -47,6 +48,7 @@ public class NativeMcpSpecificationFactory {
     private final MigrationAssistantService migrationAssistantService;
     private final IndexLifecycleService indexLifecycleService;
     private final McpCatalogService mcpCatalogService;
+    private final SearchModeResolver searchModeResolver;
 
     public NativeMcpSpecificationFactory(ObjectMapper objectMapper,
                                          LuceneSearchService luceneSearchService,
@@ -56,7 +58,8 @@ public class NativeMcpSpecificationFactory {
                                          SymbolGraphService symbolGraphService,
                                          MigrationAssistantService migrationAssistantService,
                                          IndexLifecycleService indexLifecycleService,
-                                         McpCatalogService mcpCatalogService) {
+                                         McpCatalogService mcpCatalogService,
+                                         SearchModeResolver searchModeResolver) {
         this.objectMapper = objectMapper;
         this.luceneSearchService = luceneSearchService;
         this.libraryToolsService = libraryToolsService;
@@ -66,6 +69,7 @@ public class NativeMcpSpecificationFactory {
         this.migrationAssistantService = migrationAssistantService;
         this.indexLifecycleService = indexLifecycleService;
         this.mcpCatalogService = mcpCatalogService;
+        this.searchModeResolver = searchModeResolver;
     }
 
     public List<McpServerFeatures.SyncToolSpecification> toolSpecifications() {
@@ -312,7 +316,7 @@ public class NativeMcpSpecificationFactory {
                     integerArg(args, "tokens"),
                     integerArg(args, "limit"),
                     stringArg(args, "version"),
-                    parseMode(stringArg(args, "mode")),
+                    searchModeResolver.resolve(stringArg(args, "mode")),
                     doubleArg(args, "alpha")
             );
             return success(response);
@@ -348,7 +352,7 @@ public class NativeMcpSpecificationFactory {
                     stringArg(args, "version"),
                     tagsArg(args, "tags"),
                     stringArg(args, "source"),
-                    parseMode(stringArg(args, "mode")),
+                    searchModeResolver.resolve(stringArg(args, "mode")),
                     booleanArg(args, "diagnostics", false)
             ));
             return success(response);
@@ -985,17 +989,6 @@ public class NativeMcpSpecificationFactory {
         property.put("type", type);
         property.put("description", description);
         return property;
-    }
-
-    private SearchMode parseMode(String rawMode) {
-        if (rawMode == null || rawMode.isBlank()) {
-            return SearchMode.HYBRID;
-        }
-        try {
-            return SearchMode.valueOf(rawMode.trim().toUpperCase(Locale.ROOT));
-        } catch (IllegalArgumentException ignored) {
-            return SearchMode.HYBRID;
-        }
     }
 
     private List<String> tagsArg(Map<String, Object> arguments, String key) {

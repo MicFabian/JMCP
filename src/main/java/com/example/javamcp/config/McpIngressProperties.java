@@ -1,15 +1,22 @@
 package com.example.javamcp.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
+
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 
 @ConfigurationProperties(prefix = "mcp.ingress")
+@Validated
 public class McpIngressProperties {
 
     private boolean enforceHttps = false;
     private boolean hstsEnabled = false;
+    @Min(0)
     private long hstsMaxAgeSeconds = 31_536_000L;
     private boolean hstsIncludeSubDomains = true;
     private boolean hstsPreload = true;
+    @NotBlank
     private String trustedProxies = "127\\.0\\.0\\.1|::1";
 
     public boolean isEnforceHttps() {

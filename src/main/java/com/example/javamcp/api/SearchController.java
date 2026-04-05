@@ -2,7 +2,7 @@ package com.example.javamcp.api;
 
 import com.example.javamcp.model.SearchResponse;
 import com.example.javamcp.search.LuceneSearchService;
-import com.example.javamcp.search.SearchMode;
+import com.example.javamcp.search.SearchModeResolver;
 import com.example.javamcp.search.SearchQuery;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -18,17 +18,18 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
-
 @RestController
 @RequestMapping("/api")
 @Tag(name = "Search", description = "Hybrid lexical/vector search endpoints")
 public class SearchController {
 
     private final LuceneSearchService luceneSearchService;
+    private final SearchModeResolver searchModeResolver;
 
-    public SearchController(LuceneSearchService luceneSearchService) {
+    public SearchController(LuceneSearchService luceneSearchService,
+                            SearchModeResolver searchModeResolver) {
         this.luceneSearchService = luceneSearchService;
+        this.searchModeResolver = searchModeResolver;
     }
 
     @GetMapping("/search")
@@ -73,22 +74,10 @@ public class SearchController {
                 version,
                 normalizeTags(tags),
                 source,
-                parseMode(mode),
+                searchModeResolver.resolve(mode),
                 diagnostics
         );
         return luceneSearchService.search(searchQuery);
-    }
-
-    private SearchMode parseMode(String mode) {
-        if (mode == null || mode.isBlank()) {
-            return SearchMode.HYBRID;
-        }
-
-        try {
-            return SearchMode.valueOf(mode.trim().toUpperCase(Locale.ROOT));
-        } catch (IllegalArgumentException ignored) {
-            return SearchMode.HYBRID;
-        }
     }
 
     private List<String> normalizeTags(List<String> tags) {

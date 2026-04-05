@@ -8,6 +8,7 @@ import com.example.javamcp.model.LibraryDocsResponse;
 import com.example.javamcp.model.ResolveLibraryResponse;
 import com.example.javamcp.model.SearchResponse;
 import com.example.javamcp.model.SearchResult;
+import com.example.javamcp.observability.OperationObservationService;
 import com.example.javamcp.search.LuceneSearchService;
 import com.example.javamcp.search.QueryExpansionService;
 import com.example.javamcp.search.SearchMode;
@@ -48,15 +49,18 @@ public class LibraryToolsService {
     private final LuceneSearchService luceneSearchService;
     private final QueryExpansionService queryExpansionService;
     private final MeterRegistry meterRegistry;
+    private final OperationObservationService operationObservationService;
 
     public LibraryToolsService(IngestionService ingestionService,
                                LuceneSearchService luceneSearchService,
                                QueryExpansionService queryExpansionService,
-                               MeterRegistry meterRegistry) {
+                               MeterRegistry meterRegistry,
+                               OperationObservationService operationObservationService) {
         this.ingestionService = ingestionService;
         this.luceneSearchService = luceneSearchService;
         this.queryExpansionService = queryExpansionService;
         this.meterRegistry = meterRegistry;
+        this.operationObservationService = operationObservationService;
     }
 
     public ResolveLibraryResponse resolveLibraryId(String libraryName, String topic, Integer limit) {
@@ -558,22 +562,29 @@ public class LibraryToolsService {
     }
 
     private <T> T withMetrics(String toolName, Supplier<T> supplier) {
-        long started = System.nanoTime();
-        String status = "ok";
-        try {
-            return supplier.get();
-        } catch (RuntimeException e) {
-            status = "error";
-            throw e;
-        } finally {
-            meterRegistry.counter("mcp.server.tool.calls", "mcp.method.name", toolName, "mcp.status", status)
-                    .increment();
-            Timer.builder("mcp.server.operation.duration")
-                    .tag("mcp.method.name", toolName)
-                    .tag("mcp.status", status)
-                    .register(meterRegistry)
-                    .record(System.nanoTime() - started, TimeUnit.NANOSECONDS);
-        }
+        return operationObservationService.observe(
+                "jmcp.tool.operation",
+                toolName,
+                Map.of("mcp.method.name", toolName),
+                () -> {
+                    long started = System.nanoTime();
+                    String status = "ok";
+                    try {
+                        return supplier.get();
+                    } catch (RuntimeException e) {
+                        status = "error";
+                        throw e;
+                    } finally {
+                        meterRegistry.counter("mcp.server.tool.calls", "mcp.method.name", toolName, "mcp.status", status)
+                                .increment();
+                        Timer.builder("mcp.server.operation.duration")
+                                .tag("mcp.method.name", toolName)
+                                .tag("mcp.status", status)
+                                .register(meterRegistry)
+                                .record(System.nanoTime() - started, TimeUnit.NANOSECONDS);
+                    }
+                }
+        );
     }
 
     private record LibraryRef(String id, String name) {

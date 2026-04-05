@@ -1,6 +1,8 @@
 package com.example.javamcp.ingest
 
 import com.example.javamcp.model.IngestedDocument
+import com.example.javamcp.observability.OperationObservationService
+import io.micrometer.observation.ObservationRegistry
 import spock.lang.Specification
 
 class IngestionServiceSpec extends Specification {
@@ -12,7 +14,7 @@ class IngestionServiceSpec extends Specification {
             loadRemoteDocuments(_) >> []
         }
         def properties = new IngestionProperties()
-        def service = new IngestionService(loader, remoteLoader, properties)
+        def service = new IngestionService(loader, remoteLoader, properties, new OperationObservationService(ObservationRegistry.create()))
 
         1 * loader.loadClasspathDocuments() >> [
                 new IngestedDocument(' doc-1 ', ' Title ', '4.0.0', [' spring ', 'spring', 'security'], 'Body   text', ' Source ', 'https://example.com/a ')
@@ -36,7 +38,7 @@ class IngestionServiceSpec extends Specification {
             loadRemoteDocuments(_) >> []
         }
         def properties = new IngestionProperties()
-        def service = new IngestionService(loader, remoteLoader, properties)
+        def service = new IngestionService(loader, remoteLoader, properties, new OperationObservationService(ObservationRegistry.create()))
 
         1 * loader.loadClasspathDocuments() >> [
                 new IngestedDocument('doc-1', 'Title 1', '4.0.0', ['spring'], 'Body 1', 'Source', 'https://example.com/a')

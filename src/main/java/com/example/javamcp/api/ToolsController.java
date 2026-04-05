@@ -5,7 +5,7 @@ import com.example.javamcp.model.MigrationAssistantRequest;
 import com.example.javamcp.model.MigrationAssistantResponse;
 import com.example.javamcp.model.ResolveLibraryResponse;
 import com.example.javamcp.model.ToolInvocationRule;
-import com.example.javamcp.search.SearchMode;
+import com.example.javamcp.search.SearchModeResolver;
 import com.example.javamcp.tools.LibraryToolsService;
 import com.example.javamcp.tools.MigrationAssistantService;
 import com.example.javamcp.tools.McpCatalogService;
@@ -24,7 +24,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import java.util.Locale;
 
 @RestController
 @RequestMapping("/api/tools")
@@ -34,13 +33,16 @@ public class ToolsController {
     private final LibraryToolsService libraryToolsService;
     private final MigrationAssistantService migrationAssistantService;
     private final McpCatalogService mcpCatalogService;
+    private final SearchModeResolver searchModeResolver;
 
     public ToolsController(LibraryToolsService libraryToolsService,
                            MigrationAssistantService migrationAssistantService,
-                           McpCatalogService mcpCatalogService) {
+                           McpCatalogService mcpCatalogService,
+                           SearchModeResolver searchModeResolver) {
         this.libraryToolsService = libraryToolsService;
         this.migrationAssistantService = migrationAssistantService;
         this.mcpCatalogService = mcpCatalogService;
+        this.searchModeResolver = searchModeResolver;
     }
 
     @GetMapping("/resolve-library-id")
@@ -96,7 +98,7 @@ public class ToolsController {
                 tokens,
                 limit,
                 version,
-                parseMode(mode),
+                searchModeResolver.resolve(mode),
                 alpha
         );
     }
@@ -118,7 +120,7 @@ public class ToolsController {
                 tokens,
                 limit,
                 version,
-                parseMode(mode),
+                searchModeResolver.resolve(mode),
                 null
         );
     }
@@ -157,16 +159,5 @@ public class ToolsController {
                                                                  content = @Content(examples = @ExampleObject(value = "{\"buildFile\":\"plugins { id 'org.springframework.boot' version '3.3.2' }\\njava { toolchain { languageVersion = JavaLanguageVersion.of(17) } }\",\"buildFilePath\":\"build.gradle\",\"code\":\"import javax.servlet.*; class Demo {}\",\"targetJavaVersion\":25,\"targetSpringBootVersion\":\"4.0.0\",\"includeDocs\":true}"))
                                                          ) MigrationAssistantRequest request) {
         return migrationAssistantService.assess(request);
-    }
-
-    private SearchMode parseMode(String mode) {
-        if (mode == null || mode.isBlank()) {
-            return SearchMode.HYBRID;
-        }
-        try {
-            return SearchMode.valueOf(mode.trim().toUpperCase(Locale.ROOT));
-        } catch (IllegalArgumentException ignored) {
-            return SearchMode.HYBRID;
-        }
     }
 }

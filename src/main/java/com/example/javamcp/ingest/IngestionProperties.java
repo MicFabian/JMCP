@@ -1,17 +1,26 @@
 package com.example.javamcp.ingest;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import java.util.ArrayList;
 import java.util.List;
 
 @ConfigurationProperties(prefix = "mcp.ingest")
+@Validated
 public class IngestionProperties {
 
+    @NotBlank
     private String resourcePattern = "classpath:/content/docs/*.json";
     private boolean rebuildOnStartup = true;
     private boolean includeClasspath = true;
+    @Valid
     private final List<RemoteSource> remoteSources = new ArrayList<>();
+    @Valid
     private final Schedule schedule = new Schedule();
 
     public String getResourcePattern() {
@@ -52,7 +61,9 @@ public class IngestionProperties {
 
     public static class Schedule {
         private boolean enabled = false;
+        @Min(1_000L)
         private long fixedDelayMs = 21_600_000L;
+        @Min(0L)
         private long initialDelayMs = 30_000L;
 
         public boolean isEnabled() {
@@ -152,6 +163,11 @@ public class IngestionProperties {
 
         public void setFailOnError(boolean failOnError) {
             this.failOnError = failOnError;
+        }
+
+        @AssertTrue(message = "Enabled remote sources must define both id and url")
+        public boolean hasRequiredFieldsWhenEnabled() {
+            return !enabled || (!id.isBlank() && !url.isBlank());
         }
     }
 }

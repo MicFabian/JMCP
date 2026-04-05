@@ -11,7 +11,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
-@SpringBootApplication
+@SpringBootApplication(proxyBeanMethods = false)
 @EnableConfigurationProperties({
         LuceneProperties.class,
         IngestionProperties.class,

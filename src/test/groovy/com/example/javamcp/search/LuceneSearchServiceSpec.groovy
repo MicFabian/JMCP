@@ -1,6 +1,9 @@
 package com.example.javamcp.search
 
 import com.example.javamcp.model.IngestedDocument
+import com.example.javamcp.observability.OperationObservationService
+import io.micrometer.observation.ObservationRegistry
+import org.springframework.scheduling.concurrent.ConcurrentTaskExecutor
 import spock.lang.Specification
 
 import java.nio.file.Files
@@ -29,7 +32,8 @@ class LuceneSearchServiceSpec extends Specification {
                 new EmbeddingService(),
                 new QueryExpansionService(searchProperties),
                 searchProperties,
-                executor
+                new ConcurrentTaskExecutor(executor),
+                new OperationObservationService(ObservationRegistry.create())
         )
 
         service.rebuildIndex([
@@ -62,7 +66,8 @@ class LuceneSearchServiceSpec extends Specification {
                 new EmbeddingService(),
                 new QueryExpansionService(searchProperties),
                 searchProperties,
-                executor
+                new ConcurrentTaskExecutor(executor),
+                new OperationObservationService(ObservationRegistry.create())
         )
 
         service.rebuildIndex([
@@ -102,6 +107,41 @@ class LuceneSearchServiceSpec extends Specification {
         response.results().first().id() == 'doc-1'
     }
 
+    def 'should skip vector embedding work for lexical-only searches'() {
+        given:
+        def searchProperties = new SearchProperties()
+        def embeddingService = Mock(EmbeddingService)
+        embeddingService.embed(_ as String) >> ([0.25f, 0.75f] as float[])
+        def service = new LuceneSearchService(
+                new LuceneProperties(tempDir.resolve('lucene-lexical-only').toString()),
+                embeddingService,
+                new QueryExpansionService(searchProperties),
+                searchProperties,
+                new ConcurrentTaskExecutor(executor),
+                new OperationObservationService(ObservationRegistry.create())
+        )
+
+        service.rebuildIndex([
+                new IngestedDocument(
+                        'doc-1',
+                        'Constructor Injection',
+                        '4.0.0',
+                        ['spring'],
+                        'Use constructor injection in Spring services.',
+                        'Ref',
+                        'https://example.com/constructor'
+                )
+        ])
+
+        when:
+        def response = service.search(new SearchQuery('constructor', 5, null, [], null, SearchMode.LEXICAL, true))
+
+        then:
+        0 * embeddingService.embed(_ as String)
+        response.count() == 1
+        response.diagnostics().vectorCandidates() == 0
+    }
+
     def 'should refresh search runtime after index rebuild'() {
         given:
         def searchProperties = new SearchProperties()
@@ -110,7 +150,8 @@ class LuceneSearchServiceSpec extends Specification {
                 new EmbeddingService(),
                 new QueryExpansionService(searchProperties),
                 searchProperties,
-                executor
+                new ConcurrentTaskExecutor(executor),
+                new OperationObservationService(ObservationRegistry.create())
         )
 
         service.rebuildIndex([

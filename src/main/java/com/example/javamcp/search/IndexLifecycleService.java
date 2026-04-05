@@ -4,6 +4,7 @@ import com.example.javamcp.ingest.IngestionService;
 import com.example.javamcp.model.IndexStatsResponse;
 import com.example.javamcp.model.IngestedDocument;
 import com.example.javamcp.model.IngestionSourceStatus;
+import com.example.javamcp.observability.OperationObservationService;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -16,15 +17,27 @@ public class IndexLifecycleService {
 
     private final IngestionService ingestionService;
     private final LuceneSearchService luceneSearchService;
+    private final OperationObservationService operationObservationService;
     private final AtomicReference<IndexStatsResponse> latestStats = new AtomicReference<>();
 
     public IndexLifecycleService(IngestionService ingestionService,
-                                 LuceneSearchService luceneSearchService) {
+                                 LuceneSearchService luceneSearchService,
+                                 OperationObservationService operationObservationService) {
         this.ingestionService = ingestionService;
         this.luceneSearchService = luceneSearchService;
+        this.operationObservationService = operationObservationService;
     }
 
     public synchronized IndexStatsResponse rebuildIndex() {
+        return operationObservationService.observe(
+                "jmcp.index.lifecycle",
+                "jmcp lifecycle rebuild",
+                java.util.Map.of("operation", "rebuild-index"),
+                this::rebuildIndexInternal
+        );
+    }
+
+    private synchronized IndexStatsResponse rebuildIndexInternal() {
         ingestionService.invalidateCache();
         List<IngestedDocument> documents = ingestionService.reloadNormalizedDocuments();
         luceneSearchService.rebuildIndex(documents);

@@ -9,6 +9,7 @@ import com.example.javamcp.model.MigrationAssistantResponse;
 import com.example.javamcp.model.MigrationFinding;
 import com.example.javamcp.model.MigrationReference;
 import com.example.javamcp.model.RuleIssue;
+import com.example.javamcp.observability.OperationObservationService;
 import com.example.javamcp.search.SearchMode;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -54,13 +55,16 @@ public class MigrationAssistantService {
     private final RuleEngineService ruleEngineService;
     private final LibraryToolsService libraryToolsService;
     private final MeterRegistry meterRegistry;
+    private final OperationObservationService operationObservationService;
 
     public MigrationAssistantService(RuleEngineService ruleEngineService,
                                      LibraryToolsService libraryToolsService,
-                                     MeterRegistry meterRegistry) {
+                                     MeterRegistry meterRegistry,
+                                     OperationObservationService operationObservationService) {
         this.ruleEngineService = ruleEngineService;
         this.libraryToolsService = libraryToolsService;
         this.meterRegistry = meterRegistry;
+        this.operationObservationService = operationObservationService;
     }
 
     public MigrationAssistantResponse assess(MigrationAssistantRequest request) {
@@ -463,21 +467,28 @@ public class MigrationAssistantService {
     }
 
     private <T> T withMetrics(String operation, Supplier<T> supplier) {
-        long started = System.nanoTime();
-        String status = "ok";
-        try {
-            return supplier.get();
-        } catch (RuntimeException ex) {
-            status = "error";
-            throw ex;
-        } finally {
-            meterRegistry.counter("mcp.server.tool.calls", "mcp.method.name", operation, "mcp.status", status)
-                    .increment();
-            Timer.builder("mcp.server.operation.duration")
-                    .tag("mcp.method.name", operation)
-                    .tag("mcp.status", status)
-                    .register(meterRegistry)
-                    .record(System.nanoTime() - started, TimeUnit.NANOSECONDS);
-        }
+        return operationObservationService.observe(
+                "jmcp.tool.operation",
+                operation,
+                Map.of("mcp.method.name", operation),
+                () -> {
+                    long started = System.nanoTime();
+                    String status = "ok";
+                    try {
+                        return supplier.get();
+                    } catch (RuntimeException ex) {
+                        status = "error";
+                        throw ex;
+                    } finally {
+                        meterRegistry.counter("mcp.server.tool.calls", "mcp.method.name", operation, "mcp.status", status)
+                                .increment();
+                        Timer.builder("mcp.server.operation.duration")
+                                .tag("mcp.method.name", operation)
+                                .tag("mcp.status", status)
+                                .register(meterRegistry)
+                                .record(System.nanoTime() - started, TimeUnit.NANOSECONDS);
+                    }
+                }
+        );
     }
 }

@@ -4,6 +4,7 @@ import com.example.javamcp.model.IngestedDocument;
 import com.example.javamcp.model.SearchDiagnostics;
 import com.example.javamcp.model.SearchResponse;
 import com.example.javamcp.model.SearchResult;
+import com.example.javamcp.observability.OperationObservationService;
 import jakarta.annotation.PreDestroy;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
@@ -32,6 +33,7 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -47,7 +49,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 
@@ -59,7 +60,8 @@ public class LuceneSearchService {
     private final EmbeddingService embeddingService;
     private final QueryExpansionService queryExpansionService;
     private final SearchProperties searchProperties;
-    private final ExecutorService virtualThreadExecutorService;
+    private final AsyncTaskExecutor asyncTaskExecutor;
+    private final OperationObservationService operationObservationService;
     private final Path indexPath;
     private final Analyzer analyzer;
     private final AtomicReference<SearchRuntime> searchRuntime = new AtomicReference<>();
@@ -68,17 +70,31 @@ public class LuceneSearchService {
                                EmbeddingService embeddingService,
                                QueryExpansionService queryExpansionService,
                                SearchProperties searchProperties,
-                               ExecutorService virtualThreadExecutorService) {
+                               AsyncTaskExecutor asyncTaskExecutor,
+                               OperationObservationService operationObservationService) {
         this.embeddingService = embeddingService;
         this.queryExpansionService = queryExpansionService;
         this.searchProperties = searchProperties;
-        this.virtualThreadExecutorService = virtualThreadExecutorService;
+        this.asyncTaskExecutor = asyncTaskExecutor;
+        this.operationObservationService = operationObservationService;
         this.indexPath = Path.of(luceneProperties.indexPath());
         this.analyzer = new StandardAnalyzer();
     }
 
     @CacheEvict(value = "searchResults", allEntries = true)
     public synchronized void rebuildIndex(List<IngestedDocument> documents) {
+        operationObservationService.observe(
+                "jmcp.index.rebuild",
+                "jmcp index rebuild",
+                Map.of("document.count", String.valueOf(documents == null ? 0 : documents.size())),
+                () -> {
+                    rebuildIndexInternal(documents);
+                    return null;
+                }
+        );
+    }
+
+    private synchronized void rebuildIndexInternal(List<IngestedDocument> documents) {
         try {
             Files.createDirectories(indexPath);
         } catch (IOException e) {
@@ -133,39 +149,40 @@ public class LuceneSearchService {
 
     @Cacheable("searchResults")
     public SearchResponse search(SearchQuery query) {
+        return operationObservationService.observe(
+                "jmcp.search.query",
+                "jmcp search",
+                Map.of("mode", (query == null || query.mode() == null) ? SearchMode.HYBRID.name() : query.mode().name()),
+                () -> searchInternal(query)
+        );
+    }
+
+    private SearchResponse searchInternal(SearchQuery query) {
         long startedAt = System.nanoTime();
         int maxResults = clampLimit(query.limit());
         int candidateCount = Math.max(maxResults, maxResults * searchProperties.getCandidateMultiplier());
+        SearchMode mode = query.mode();
 
         String safeQuery = normalize(query.query());
         String expandedQuery = queryExpansionService.expand(safeQuery);
 
         SearchRuntime runtime = getOrCreateRuntime();
         if (runtime == null) {
-            return buildResponse(safeQuery, expandedQuery, query.mode(), List.of(), 0, 0, startedAt, query.includeDiagnostics());
+            return buildResponse(safeQuery, expandedQuery, mode, List.of(), 0, 0, startedAt, query.includeDiagnostics());
         }
 
         IndexSearcher searcher = runtime.acquire();
         try {
             Query filterQuery = buildFilterQuery(query);
-
-            CompletableFuture<ScoreDoc[]> lexicalFuture = CompletableFuture.supplyAsync(
-                    () -> runLexicalSafe(searcher, analyzer, safeQuery, expandedQuery, query.mode(), filterQuery, candidateCount),
-                    virtualThreadExecutorService
-            );
-            CompletableFuture<ScoreDoc[]> vectorFuture = CompletableFuture.supplyAsync(
-                    () -> runVectorSafe(searcher, expandedQuery, query, candidateCount),
-                    virtualThreadExecutorService
-            );
-
-            ScoreDoc[] lexicalDocs = lexicalFuture.join();
-            ScoreDoc[] vectorDocs = vectorFuture.join();
+            SearchCandidateSet candidates = executeCandidates(searcher, safeQuery, expandedQuery, query, mode, filterQuery, candidateCount);
+            ScoreDoc[] lexicalDocs = candidates.lexicalDocs();
+            ScoreDoc[] vectorDocs = candidates.vectorDocs();
             List<String> snippetTokens = queryExpansionService.tokenize(safeQuery);
 
             Map<Integer, Double> fusedScores = new HashMap<>();
             Map<Integer, Float> lexicalScores = new HashMap<>();
-            applyRrfScores(fusedScores, lexicalDocs, lexicalWeight(query.mode()));
-            applyRrfScores(fusedScores, vectorDocs, vectorWeight(query.mode()));
+            applyRrfScores(fusedScores, lexicalDocs, lexicalWeight(mode));
+            applyRrfScores(fusedScores, vectorDocs, vectorWeight(mode));
             Arrays.stream(lexicalDocs).forEach(scoreDoc -> lexicalScores.put(scoreDoc.doc, scoreDoc.score));
 
             List<SearchResult> results = fusedScores.entrySet()
@@ -185,7 +202,7 @@ public class LuceneSearchService {
             return buildResponse(
                     safeQuery,
                     expandedQuery,
-                    query.mode(),
+                    mode,
                     results,
                     lexicalDocs.length,
                     vectorDocs.length,
@@ -197,6 +214,38 @@ public class LuceneSearchService {
         } finally {
             runtime.release(searcher);
         }
+    }
+
+    private SearchCandidateSet executeCandidates(IndexSearcher searcher,
+                                                 String safeQuery,
+                                                 String expandedQuery,
+                                                 SearchQuery query,
+                                                 SearchMode mode,
+                                                 Query filterQuery,
+                                                 int candidateCount) {
+        if (mode == SearchMode.LEXICAL) {
+            return new SearchCandidateSet(
+                    runLexicalSafe(searcher, analyzer, safeQuery, expandedQuery, mode, filterQuery, candidateCount),
+                    new ScoreDoc[0]
+            );
+        }
+
+        if (mode == SearchMode.VECTOR) {
+            return new SearchCandidateSet(
+                    new ScoreDoc[0],
+                    runVectorSafe(searcher, expandedQuery, query, candidateCount)
+            );
+        }
+
+        CompletableFuture<ScoreDoc[]> lexicalFuture = CompletableFuture.supplyAsync(
+                () -> runLexicalSafe(searcher, analyzer, safeQuery, expandedQuery, mode, filterQuery, candidateCount),
+                asyncTaskExecutor
+        );
+        CompletableFuture<ScoreDoc[]> vectorFuture = CompletableFuture.supplyAsync(
+                () -> runVectorSafe(searcher, expandedQuery, query, candidateCount),
+                asyncTaskExecutor
+        );
+        return new SearchCandidateSet(lexicalFuture.join(), vectorFuture.join());
     }
 
     @PreDestroy
@@ -578,6 +627,9 @@ public class LuceneSearchService {
                 throw new IllegalStateException("Failed to release Lucene searcher", e);
             }
         }
+    }
+
+    private record SearchCandidateSet(ScoreDoc[] lexicalDocs, ScoreDoc[] vectorDocs) {
     }
 
     private record RankedHit(Document document, double boostedScore, float lexicalScore) {

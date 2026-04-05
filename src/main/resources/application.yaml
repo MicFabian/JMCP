@@ -9,6 +9,9 @@ spring:
   graphql:
     graphiql:
       enabled: true
+  mvc:
+    problemdetails:
+      enabled: true
   cache:
     cache-names:
       - searchResults
@@ -45,6 +48,9 @@ management:
         enabled: true
   metrics:
     tags:
+      application: ${spring.application.name}
+  observations:
+    key-values:
       application: ${spring.application.name}
   health:
     diskspace:

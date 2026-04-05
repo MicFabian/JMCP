@@ -10,6 +10,7 @@ import com.example.javamcp.model.MigrationReference
 import com.example.javamcp.model.ResolveLibraryResponse
 import com.example.javamcp.model.ToolInvocationRule
 import com.example.javamcp.search.SearchMode
+import com.example.javamcp.search.SearchModeResolver
 import com.example.javamcp.tools.LibraryToolsService
 import com.example.javamcp.tools.MigrationAssistantService
 import com.example.javamcp.tools.McpCatalogService
@@ -53,7 +54,7 @@ class ToolsControllerSpec extends Specification {
         def catalog = Stub(McpCatalogService) {
             listToolRules() >> [new ToolInvocationRule('java-library-docs', 'desc', ['spring'], 'resolve-library-id -> query-docs', 100)]
         }
-        def controller = new ToolsController(libraryTools, migration, catalog)
+        def controller = new ToolsController(libraryTools, migration, catalog, new SearchModeResolver())
 
         when:
         def resolved = controller.resolveLibraryId('spring security csrf', 'spring security', 'csrf', 3)
@@ -92,7 +93,7 @@ class ToolsControllerSpec extends Specification {
                     []
             )
         }
-        def controller = new ToolsController(libraryTools, Stub(MigrationAssistantService), Stub(McpCatalogService))
+        def controller = new ToolsController(libraryTools, Stub(MigrationAssistantService), Stub(McpCatalogService), new SearchModeResolver())
 
         when:
         def docs = controller.queryDocs('/spring-projects/spring-security', 'csrf', 1000, 5, null, 'not-a-mode', null)

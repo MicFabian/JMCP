@@ -4,6 +4,10 @@ metadata:
   name: mcp-java
 spec:
   type: ClusterIP
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
   selector:
     app: mcp-java
   ports:

@@ -495,6 +495,13 @@ kubectl apply -f k8s/service.yaml
 kubectl apply -f k8s/ingress.yaml
 ```
 
+Native MCP transport note:
+- `/mcp` needs sticky routing when you run more than one replica.
+- The provided manifests therefore use two layers of protection:
+- `ClientIP` session affinity on the Service.
+- A dedicated NGINX Ingress for `/mcp` with persistent cookie affinity, buffering disabled, HTTP/1.1 upstream, and long read/send timeouts.
+- Keep those settings in place if you change ingress structure; otherwise MCP initialize and follow-up calls can land on different pods and the native session will fail.
+
 ### Public Internet Access (API-key protected)
 
 On single-node k3s without an external cloud load balancer, ingress is exposed via NodePorts:

@@ -1,0 +1,9 @@
+{
+  "id": "snappo-gradle-coordinates",
+  "title": "Add Snappo with io.github.micfabian:snappo",
+  "version": "current",
+  "tags": ["snappo", "groovy", "spock", "gradle", "dependency"],
+  "content": "Install Snappo from the io.github.micfabian:snappo coordinates in your test dependencies. JMCP guidance recommends pairing that dependency with Groovy and Spock when snapshot coverage is needed in JVM projects.",
+  "source": "Maven Repository",
+  "sourceUrl": "https://mvnrepository.com/artifact/io.github.micfabian/snappo"
+}

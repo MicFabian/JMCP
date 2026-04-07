@@ -339,16 +339,27 @@ public class LibraryToolsService {
 
         float textual = scoreAgainstTokens(haystack.toString(), queryTokens);
         float popularity = documents.size() / (float) maxDocCount;
-        float nameBoost = 0f;
+        float nameAlignment = 0f;
         if (!requestedLibraryName.isBlank()) {
             String normalizedName = libraryName.toLowerCase(Locale.ROOT);
             String normalizedRequested = requestedLibraryName.toLowerCase(Locale.ROOT);
-            if (normalizedName.contains(normalizedRequested) || normalizedRequested.contains(normalizedName)) {
-                nameBoost = 0.25f;
+            if (normalizedName.equals(normalizedRequested)) {
+                nameAlignment = 1.0f;
+            } else if (normalizedName.contains(normalizedRequested) || normalizedRequested.contains(normalizedName)) {
+                nameAlignment = 0.9f;
+            } else {
+                List<String> requestedTokens = queryExpansionService.tokenize(normalizedRequested);
+                boolean partialMatch = requestedTokens.stream()
+                        .anyMatch(token -> !token.isBlank() && normalizedName.contains(token));
+                if (partialMatch) {
+                    nameAlignment = 0.4f;
+                }
             }
         }
 
-        float baseScore = queryTokens.isEmpty() ? popularity : (textual * 0.75f + popularity * 0.15f + nameBoost * 0.10f);
+        float baseScore = queryTokens.isEmpty()
+                ? (popularity * 0.40f + nameAlignment * 0.60f)
+                : (textual * 0.65f + popularity * 0.10f + nameAlignment * 0.25f);
         float score = Math.max(0f, Math.min(baseScore, 1.0f));
 
         String summary = documents.stream()
@@ -437,7 +448,21 @@ public class LibraryToolsService {
         String source = normalize(document.source());
         String sourceUrl = normalize(document.sourceUrl());
         String normalizedSource = source.toLowerCase(Locale.ROOT);
+        String normalizedSourceUrl = sourceUrl.toLowerCase(Locale.ROOT);
+        String normalizedTitle = normalize(document.title()).toLowerCase(Locale.ROOT);
+        String normalizedTags = String.join(" ", document.tags()).toLowerCase(Locale.ROOT);
+        String normalizedContent = normalize(document.content()).toLowerCase(Locale.ROOT);
+        String combined = String.join(" ", normalizedSource, normalizedSourceUrl, normalizedTitle, normalizedTags, normalizedContent);
 
+        if (combined.contains("snappo")) {
+            return new LibraryRef("/io.github.micfabian/snappo", "Snappo");
+        }
+        if (normalizedSource.contains("groovy")
+                || normalizedSourceUrl.contains("groovy-lang.org")
+                || normalizedTitle.contains("groovy")
+                || normalizedTags.contains("groovy")) {
+            return new LibraryRef("/apache/groovy", "Apache Groovy");
+        }
         if (normalizedSource.contains("spring security")) {
             return new LibraryRef("/spring-projects/spring-security", "Spring Security");
         }
@@ -447,7 +472,7 @@ public class LibraryToolsService {
         if (normalizedSource.contains("spring boot")) {
             return new LibraryRef("/spring-projects/spring-boot", "Spring Boot");
         }
-        if (normalizedSource.contains("openjdk") || sourceUrl.contains("openjdk.org")) {
+        if (normalizedSource.contains("openjdk") || normalizedSourceUrl.contains("openjdk.org")) {
             return new LibraryRef("/openjdk/jdk", "OpenJDK");
         }
 

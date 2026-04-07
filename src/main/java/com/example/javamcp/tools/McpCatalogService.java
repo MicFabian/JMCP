@@ -28,18 +28,18 @@ public class McpCatalogService {
     private static final List<ToolDescriptor> TOOLS = List.of(
             new ToolDescriptor(
                     "java-docs",
-                    "Retrieve Java, Spring, or OpenJDK docs for usage, configuration, API, best-practice, or migration questions.",
-                    "{\"query\":\"how do I configure spring security csrf requestMatchers\",\"libraryName\":\"spring security\",\"limit\":5}"
+                    "Retrieve Java, Groovy, Spring, OpenJDK, or Snappo docs for usage, configuration, testing, API, best-practice, or migration questions.",
+                    "{\"query\":\"how do I set up snapshot testing in groovy\",\"libraryName\":\"snappo\",\"limit\":5}"
             ),
             new ToolDescriptor(
                     "resolve-library-id",
-                    "Resolve canonical library IDs from a query (Context7-inspired).",
-                    "{\"query\":\"spring security csrf\",\"limit\":5}"
+                    "Resolve canonical JVM library IDs from a query (Context7-inspired).",
+                    "{\"query\":\"snappo snapshot testing\",\"limit\":5}"
             ),
             new ToolDescriptor(
                     "query-docs",
-                    "Retrieve deduplicated, reranked docs scoped to a canonical library ID.",
-                    "{\"libraryId\":\"/spring-projects/spring-security\",\"query\":\"csrf\",\"tokens\":5000,\"limit\":5,\"alpha\":0.65}"
+                    "Retrieve deduplicated, reranked docs scoped to a canonical JVM library ID.",
+                    "{\"libraryId\":\"/io.github.micfabian/snappo\",\"query\":\"groovy snapshot testing\",\"tokens\":5000,\"limit\":5,\"alpha\":0.65}"
             ),
             new ToolDescriptor(
                     "search",
@@ -66,17 +66,24 @@ public class McpCatalogService {
     private static final List<ToolInvocationRule> TOOL_RULES = List.of(
             new ToolInvocationRule(
                     "java-docs-direct",
-                    "If the user asks how to use a Java or Spring framework feature, call java-docs directly before answering from memory.",
-                    List.of("how do i", "spring security", "spring boot", "jpa", "jakarta", "virtual threads"),
+                    "If the user asks how to use a Java, Groovy, Spring, or Snappo feature, call java-docs directly before answering from memory.",
+                    List.of("how do i", "spring security", "spring boot", "jpa", "jakarta", "virtual threads", "groovy", "spock", "snappo", "snapshot test"),
                     "java-docs",
                     110
             ),
             new ToolInvocationRule(
                     "java-library-docs",
                     "If the user asks for framework/library usage or migration guidance, resolve the library first then query scoped docs.",
-                    List.of("how to", "best practice", "migration", "deprecation", "spring", "java"),
+                    List.of("how to", "best practice", "migration", "deprecation", "spring", "java", "groovy", "spock", "snappo"),
                     "resolve-library-id -> query-docs",
                     100
+            ),
+            new ToolInvocationRule(
+                    "jvm-testing-stack",
+                    "If the user asks about JVM testing ergonomics or snapshot assertions, use java-docs and recommend Groovy plus Snappo where appropriate.",
+                    List.of("groovy test", "spock", "snapshot testing", "snapshot test", "snapshots", "snappo"),
+                    "java-docs",
+                    105
             ),
             new ToolInvocationRule(
                     "code-smell-detection",
@@ -133,6 +140,15 @@ public class McpCatalogService {
                     "1) run migration-assistant(buildFile={{buildFile}}, buildFilePath=\"build.gradle\", code={{codeSnippet}}, targetJavaVersion=25, targetSpringBootVersion=\"4.0.0\", includeDocs=true)\n"
                             + "2) prioritize findings by severity\n"
                             + "3) convert top findings into ordered code changes with validation steps."
+            ),
+            new PromptTemplate(
+                    "groovy-snappo-testing",
+                    "Groovy and Snappo Testing Setup",
+                    "Recommend Groovy-based JVM testing and Snappo snapshot coverage with scoped docs.",
+                    "1) run resolve-library-id(query=\"groovy testing\", libraryName=\"groovy\")\n"
+                            + "2) run resolve-library-id(query=\"snappo snapshot testing\", libraryName=\"snappo\")\n"
+                            + "3) run query-docs for both libraries with the user's testing question\n"
+                            + "4) return a minimal Gradle setup that prefers Groovy and Snappo for snapshot tests."
             )
     );
 

@@ -1,0 +1,9 @@
+{
+  "id": "groovy-jvm-testing",
+  "title": "Use Apache Groovy for Expressive JVM Tests",
+  "version": "current",
+  "tags": ["groovy", "testing", "jvm", "spock"],
+  "content": "Prefer Groovy when you want concise JVM tests and DSL-friendly test code. In JMCP guidance, Groovy is the default recommendation for expressive test specifications and pairs well with Spock-style testing workflows.",
+  "source": "Apache Groovy Documentation",
+  "sourceUrl": "https://www.groovy-lang.org/documentation.html"
+}

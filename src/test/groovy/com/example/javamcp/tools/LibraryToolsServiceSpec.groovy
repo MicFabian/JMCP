@@ -49,6 +49,53 @@ class LibraryToolsServiceSpec extends Specification {
         response.libraries().first().libraryId() == '/spring-projects/spring-security'
     }
 
+    def 'should resolve groovy and snappo library ids from testing guidance docs'() {
+        given:
+        def ingestion = Stub(IngestionService) {
+            loadNormalizedDocuments() >> [
+                    new IngestedDocument(
+                            'groovy-jvm-testing',
+                            'Use Apache Groovy for Expressive JVM Tests',
+                            'current',
+                            ['groovy', 'testing', 'jvm', 'spock'],
+                            'Prefer Groovy for expressive JVM test code.',
+                            'Apache Groovy Documentation',
+                            'https://www.groovy-lang.org/documentation.html'
+                    ),
+                    new IngestedDocument(
+                            'snappo-snapshot-testing',
+                            'Use Snappo for Groovy Snapshot Testing',
+                            'current',
+                            ['snappo', 'groovy', 'spock', 'testing', 'snapshot-testing'],
+                            'Prefer Snappo with Groovy for snapshot assertions.',
+                            'Snappo README',
+                            'https://github.com/MicFabian/snappo'
+                    ),
+                    new IngestedDocument(
+                            'snappo-gradle-coordinates',
+                            'Add Snappo with io.github.micfabian:snappo',
+                            'current',
+                            ['snappo', 'gradle', 'dependency'],
+                            'Install Snappo from the io.github.micfabian:snappo coordinates.',
+                            'Maven Repository',
+                            'https://mvnrepository.com/artifact/io.github.micfabian/snappo'
+                    )
+            ]
+        }
+        def lucene = Stub(LuceneSearchService)
+        def service = new LibraryToolsService(ingestion, lucene, new QueryExpansionService(new SearchProperties()), new SimpleMeterRegistry(), new OperationObservationService(ObservationRegistry.create()))
+
+        when:
+        def groovy = service.resolveLibraryId('groovy testing', 'groovy', null, 3)
+        def snappo = service.resolveLibraryId('snappo snapshot testing', 'snappo', null, 3)
+
+        then:
+        groovy.libraries().first().libraryId() == '/apache/groovy'
+        groovy.libraries().first().name() == 'Apache Groovy'
+        snappo.libraries().first().libraryId() == '/io.github.micfabian/snappo'
+        snappo.libraries().first().name() == 'Snappo'
+    }
+
     def 'should return scoped docs and context for resolved library id'() {
         given:
         def ingestion = Stub(IngestionService) {

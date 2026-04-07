@@ -84,6 +84,17 @@ class NativeMcpContractSpec extends Specification {
         resolveResult.count >= 1
         libraries*.libraryId.contains('/spring-projects/spring-security')
 
+        when: 'resolve snappo for snapshot testing guidance'
+        def snappoResolve = successfulToolCall(session.id(), 'resolve-library-id', [
+                query: 'snappo snapshot testing',
+                limit: 3
+        ])
+        def snappoLibraries = (List<Map<String, Object>>) snappoResolve.libraries
+
+        then:
+        snappoResolve.count >= 1
+        snappoLibraries*.libraryId.contains('/io.github.micfabian/snappo')
+
         when: 'query docs with high-level java-docs tool'
         def javaDocs = successfulToolCall(session.id(), 'java-docs', [
                 query      : 'how do I configure csrf in spring security',
@@ -96,6 +107,19 @@ class NativeMcpContractSpec extends Specification {
         javaDocs.strategy == 'resolved-library'
         javaDocs.resolvedLibraryId == '/spring-projects/spring-security'
         javaDocIds.contains('spring-boot-csrf')
+
+        when: 'query docs for groovy snapshot testing guidance'
+        def snappoDocs = successfulToolCall(session.id(), 'java-docs', [
+                query      : 'how do I add snapshot testing in groovy',
+                libraryName: 'snappo',
+                limit      : 3
+        ])
+        def snappoDocIds = ((List<Map<String, Object>>) snappoDocs.documents)*.id
+
+        then:
+        snappoDocs.strategy == 'resolved-library'
+        snappoDocs.resolvedLibraryId == '/io.github.micfabian/snappo'
+        snappoDocIds.contains('snappo-snapshot-testing')
 
         when: 'query docs with raw MCP response to inspect resource links'
         def javaDocsRpc = rpc(session.id(), [

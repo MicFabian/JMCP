@@ -183,10 +183,10 @@ public class NativeMcpSpecificationFactory {
         McpSchema.Tool tool = tool(
                 "java-docs",
                 "Java and Spring Docs",
-                "Retrieve Java, Spring, or OpenJDK documentation for usage, configuration, best-practice, or migration questions.",
+                "Retrieve Java, Groovy, Spring, OpenJDK, or Snappo documentation for usage, configuration, testing, best-practice, or migration questions.",
                 Map.of(
                         "query", stringProperty("Required natural-language question, e.g. 'spring security csrf requestMatchers'"),
-                        "libraryName", stringProperty("Optional library hint, e.g. 'spring security' or 'openjdk'"),
+                        "libraryName", stringProperty("Optional library hint, e.g. 'spring security', 'groovy', or 'snappo'"),
                         "version", stringProperty("Optional exact version filter"),
                         "tokens", integerProperty("Approximate token budget for context assembly"),
                         "limit", integerProperty("Maximum number of documents"),
@@ -263,7 +263,7 @@ public class NativeMcpSpecificationFactory {
         McpSchema.Tool tool = tool(
                 "resolve-library-id",
                 "Resolve Library ID",
-                "Resolve a canonical Java, Spring, or OpenJDK library identifier before scoped documentation retrieval.",
+                "Resolve a canonical Java, Groovy, Spring, OpenJDK, or Snappo library identifier before scoped documentation retrieval.",
                 Map.of(
                         "query", stringProperty("Natural language query (preferred input)"),
                         "libraryName", stringProperty("Library name hint, e.g. spring security"),
@@ -291,7 +291,7 @@ public class NativeMcpSpecificationFactory {
         McpSchema.Tool tool = tool(
                 "query-docs",
                 "Query Library Docs",
-                "Retrieve deduplicated documentation chunks for a resolved Java, Spring, or OpenJDK library.",
+                "Retrieve deduplicated documentation chunks for a resolved Java, Groovy, Spring, OpenJDK, or Snappo library.",
                 Map.of(
                         "libraryId", stringProperty("Canonical library id, e.g. /spring-projects/spring-security"),
                         "query", stringProperty("Query within that library"),
@@ -327,7 +327,7 @@ public class NativeMcpSpecificationFactory {
         McpSchema.Tool tool = tool(
                 "search",
                 "Search Indexed Java Content",
-                "Hybrid search across all indexed Java, Spring, and OpenJDK MCP content.",
+                "Hybrid search across all indexed Java, Groovy, Spring, Snappo, and OpenJDK MCP content.",
                 Map.of(
                         "q", stringProperty("Search query"),
                         "limit", integerProperty("Maximum number of results"),

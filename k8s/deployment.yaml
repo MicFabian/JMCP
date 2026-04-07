@@ -47,6 +47,8 @@ spec:
               value: "21600000"
             - name: MCP_INGEST_SCHEDULE_INITIAL_DELAY_MS
               value: "60000"
+            - name: MCP_HEALTH_MAX_INDEX_AGE
+              value: "24h"
             - name: MCP_INGEST_REMOTE_SOURCES_0_ID
               value: "spring-security-csrf"
             - name: MCP_INGEST_REMOTE_SOURCES_0_URL

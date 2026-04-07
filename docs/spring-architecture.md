@@ -9,6 +9,7 @@ This document captures the Spring-specific production patterns applied in JMCP a
 - `ApiExceptionHandler` ordered at highest precedence so custom API errors win over lower-priority default MVC handlers.
 - Virtual-thread task execution wrapped with `ContextPropagatingTaskDecorator` so observation and request context survive async fan-out.
 - Core ingestion, indexing, search, and tool operations wrapped in Micrometer `Observation`s.
+- Custom JMCP Actuator health contributor added with `indexFreshness` and `remoteSources` sub-checks, and included in the readiness group.
 - `@Configuration(proxyBeanMethods = false)` applied to configuration classes and the main application class to avoid unnecessary CGLIB proxying.
 - Startup rebuild and scheduled refresh jobs guarded by `@ConditionalOnProperty` so disabled features do not create live beans or scheduled invocations.
 - Architectural boundaries enforced with ArchUnit:
@@ -44,6 +45,7 @@ Spring Modulith is the most natural long-term fit for application module verific
 - Faster failure on bad configuration.
 - Lower accidental coupling between REST, GraphQL, gRPC, and native MCP adapters.
 - More reliable observability across async execution.
+- Readiness that reflects stale indexes and required remote-source ingestion failures.
 - Less wasted search work for non-hybrid modes.
 - Clearer operational behavior when index rebuilds or schedules are disabled.
 

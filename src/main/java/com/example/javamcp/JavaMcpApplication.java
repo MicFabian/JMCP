@@ -2,6 +2,7 @@ package com.example.javamcp;
 
 import com.example.javamcp.config.McpSecurityProperties;
 import com.example.javamcp.config.McpIngressProperties;
+import com.example.javamcp.config.McpHealthProperties;
 import com.example.javamcp.ingest.IngestionProperties;
 import com.example.javamcp.search.LuceneProperties;
 import com.example.javamcp.search.SearchProperties;
@@ -17,7 +18,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
         IngestionProperties.class,
         SearchProperties.class,
         McpSecurityProperties.class,
-        McpIngressProperties.class
+        McpIngressProperties.class,
+        McpHealthProperties.class
 })
 @EnableCaching
 @EnableScheduling

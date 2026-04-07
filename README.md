@@ -307,6 +307,7 @@ docker run --rm \
   -e SPRING_PROFILES_ACTIVE=prod \
   -e MCP_API_KEY='replace-with-strong-secret' \
   -e MCP_TRUSTED_PROXIES='127\\.0\\.0\\.1|::1' \
+  -e MCP_HEALTH_MAX_INDEX_AGE='24h' \
   -e MCP_REBUILD_ON_STARTUP=false \
   jmcp:local
 ```
@@ -540,6 +541,7 @@ Pipeline behavior:
 - Applies `k8s/deployment.yaml`, `k8s/service.yaml`, `k8s/ingress.yaml`.
 - Deploys with image `ghcr.io/micfabian/jmcp:sha-<commit>` and waits for rollout.
 - Includes a separate nightly workflow (`.github/workflows/nightly-reindex.yml`) to call `/api/index/rebuild` on the live service.
+- Readiness now includes a custom `jmcp` health contributor with `indexFreshness` and `remoteSources` checks.
 
 Required GitHub repository secrets:
 - `KUBE_CONFIG` (full kubeconfig content)
@@ -551,6 +553,10 @@ Required GitHub repository secrets:
 Recommended GitHub repository variables:
 - `GHCR_PULL_USERNAME` (defaults to `micfabian` if unset)
 - `JMCP_BASE_URL` (required for nightly reindex workflow, e.g. `http://94.16.111.94:30739`)
+
+Operational health knobs:
+- `MCP_HEALTH_MAX_INDEX_AGE` (default `24h`; readiness goes `DOWN` when the last successful index build is older than this)
+- Remote sources with `fail-on-error=true` now affect readiness; optional remote source failures stay visible in health details without failing the pod
 
 Set secrets and variables with GitHub CLI:
 
@@ -608,6 +614,7 @@ gantt
 - JVM commands use `--enable-native-access=ALL-UNNAMED` for Lucene native-access compatibility on Java 25.
 - Virtual threads are enabled (`spring.threads.virtual.enabled=true`) for request handling and async workloads.
 - Ingested docs are normalized and cached in-memory; use `POST /api/index/rebuild` to force reload + reindex.
+- `/actuator/health/readiness` now includes JMCP-specific checks for index freshness and required remote source failures.
 - Spring-specific production defaults now include validated configuration properties, RFC 9457 `ProblemDetail` responses, Micrometer observations around ingestion/search/tool operations, and `ContextPropagatingTaskDecorator` for async context propagation.
 - Startup rebuild and scheduled refresh components are conditionally registered from properties so disabled jobs do not create active beans.
 - Architectural boundaries are enforced in tests with ArchUnit while Spring Modulith's Boot 4 line matures.

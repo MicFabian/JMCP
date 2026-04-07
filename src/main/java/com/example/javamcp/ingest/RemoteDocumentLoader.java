@@ -26,14 +26,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Pattern;
 
 @Component
 public class RemoteDocumentLoader {
 
     private static final Logger log = LoggerFactory.getLogger(RemoteDocumentLoader.class);
-    private static final Pattern NON_ALNUM = Pattern.compile("[^a-z0-9]+");
-    private static final Pattern MULTI_DASH = Pattern.compile("-{2,}");
     private static final int MAX_CHARS_PER_CHUNK = 3_500;
     private static final int MAX_CHUNKS = 20;
 
@@ -63,7 +60,7 @@ public class RemoteDocumentLoader {
 
         List<IngestedDocument> allDocuments = new ArrayList<>();
         for (IngestionProperties.RemoteSource source : sources) {
-            String sourceId = normalizedSourceId(source);
+            String sourceId = RemoteSourceIds.normalizedSourceId(source);
             if (!source.isEnabled()) {
                 statuses.put(sourceId, new IngestionSourceStatus(
                         sourceId,
@@ -119,7 +116,7 @@ public class RemoteDocumentLoader {
 
         List<IngestionSourceStatus> result = new ArrayList<>(configuredSources.size());
         for (IngestionProperties.RemoteSource source : configuredSources) {
-            String sourceId = normalizedSourceId(source);
+            String sourceId = RemoteSourceIds.normalizedSourceId(source);
             IngestionSourceStatus status = statuses.get(sourceId);
             if (status != null) {
                 result.add(status);
@@ -413,22 +410,6 @@ public class RemoteDocumentLoader {
             return ContentFormat.MARKDOWN;
         }
         return ContentFormat.TEXT;
-    }
-
-    private String normalizedSourceId(IngestionProperties.RemoteSource source) {
-        String configuredId = source.getId();
-        if (configuredId != null && !configuredId.isBlank()) {
-            return sanitizeId(configuredId);
-        }
-        return sanitizeId(source.getUrl());
-    }
-
-    private String sanitizeId(String raw) {
-        String lower = raw == null ? "remote-source" : raw.toLowerCase(Locale.ROOT);
-        String normalized = NON_ALNUM.matcher(lower).replaceAll("-");
-        normalized = MULTI_DASH.matcher(normalized).replaceAll("-");
-        normalized = normalized.replaceAll("(^-|-$)", "");
-        return normalized.isBlank() ? "remote-source" : normalized;
     }
 
     private enum ContentFormat {

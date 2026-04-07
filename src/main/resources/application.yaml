@@ -42,6 +42,9 @@ management:
     health:
       probes:
         enabled: true
+      group:
+        readiness:
+          include: readinessState,jmcp
   prometheus:
     metrics:
       export:
@@ -76,6 +79,8 @@ mcp:
     hsts-include-sub-domains: true
     hsts-preload: true
     trusted-proxies: 127\.0\.0\.1|::1
+  health:
+    max-index-age: 24h
   lucene:
     index-path: data/lucene
   search:

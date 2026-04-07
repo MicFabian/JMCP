@@ -497,10 +497,10 @@ kubectl apply -f k8s/ingress.yaml
 
 Native MCP transport note:
 - `/mcp` needs sticky routing when you run more than one replica.
-- The provided manifests therefore use two layers of protection:
-- `ClientIP` session affinity on the Service.
-- A dedicated NGINX Ingress for `/mcp` with consistent upstream hashing by client IP, buffering disabled, HTTP/1.1 upstream, retries disabled, and long read/send timeouts.
-- Keep those settings in place if you change ingress structure; otherwise MCP initialize and follow-up calls can land on different pods and the native session will fail.
+- The MCP Java SDK stores streamable-HTTP sessions in-process, so a single session cannot hop across pods.
+- The provided manifests therefore expose `/mcp` through a dedicated `mcp-java-native` Deployment with `replicas: 1`.
+- The regular API/search Deployment stays independently scalable at `mcp-java`.
+- The native ingress keeps buffering disabled, HTTP/1.1 upstream, retries disabled, and long read/send timeouts for streaming stability.
 
 ### Public Internet Access (API-key protected)
 

@@ -10,6 +10,7 @@ env:
   IMAGE_NAME: ghcr.io/micfabian/jmcp
   K8S_NAMESPACE: jmcp-prod
   DEPLOYMENT_NAME: mcp-java
+  NATIVE_DEPLOYMENT_NAME: mcp-java-native
   CONTAINER_NAME: mcp-service
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
@@ -162,6 +163,8 @@ jobs:
 
           kubectl -n "${{ env.K8S_NAMESPACE }}" rollout status \
             deployment/${{ env.DEPLOYMENT_NAME }} --timeout=300s
+          kubectl -n "${{ env.K8S_NAMESPACE }}" rollout status \
+            deployment/${{ env.NATIVE_DEPLOYMENT_NAME }} --timeout=300s
 
       - name: Post-deploy status
         run: |

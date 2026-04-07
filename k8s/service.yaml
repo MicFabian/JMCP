@@ -18,3 +18,16 @@ spec:
       port: 9090
       targetPort: 9090
       appProtocol: grpc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-java-native
+spec:
+  type: ClusterIP
+  selector:
+    app: mcp-java-native
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080

@@ -1,8 +1,8 @@
 package com.example.javamcp.mcp;
 
 import io.modelcontextprotocol.server.McpServer;
-import io.modelcontextprotocol.server.McpStatelessSyncServer;
-import io.modelcontextprotocol.server.transport.HttpServletStatelessServerTransport;
+import io.modelcontextprotocol.server.McpSyncServer;
+import io.modelcontextprotocol.server.transport.HttpServletStreamableServerTransportProvider;
 import io.modelcontextprotocol.spec.McpSchema;
 import jakarta.servlet.http.HttpServlet;
 import org.springframework.boot.web.servlet.ServletRegistrationBean;
@@ -15,22 +15,23 @@ import java.time.Duration;
 public class NativeMcpServerConfig {
 
     @Bean
-    public HttpServletStatelessServerTransport mcpStatelessTransport() {
-        return HttpServletStatelessServerTransport.builder()
-                .messageEndpoint("/mcp")
+    public HttpServletStreamableServerTransportProvider mcpStreamableTransportProvider() {
+        return HttpServletStreamableServerTransportProvider.builder()
+                .mcpEndpoint("/mcp")
+                .keepAliveInterval(Duration.ofSeconds(20))
                 .build();
     }
 
     @Bean(destroyMethod = "closeGracefully")
-    public McpStatelessSyncServer nativeMcpSyncServer(HttpServletStatelessServerTransport transport,
-                                                      NativeMcpSpecificationFactory specificationFactory) {
+    public McpSyncServer nativeMcpSyncServer(HttpServletStreamableServerTransportProvider transportProvider,
+                                             NativeMcpSpecificationFactory specificationFactory) {
         McpSchema.ServerCapabilities capabilities = McpSchema.ServerCapabilities.builder()
                 .tools(true)
                 .resources(false, true)
                 .prompts(true)
                 .build();
 
-        return McpServer.sync(transport)
+        return McpServer.sync(transportProvider)
                 .serverInfo("java-mcp", "v0.1.0")
                 .instructions("""
                         Java MCP server for Spring, Java, Groovy, Snappo, and OpenJDK documentation plus Java code analysis.
@@ -50,10 +51,10 @@ public class NativeMcpServerConfig {
 
     @Bean
     public ServletRegistrationBean<HttpServlet> mcpServletRegistration(
-            HttpServletStatelessServerTransport transport,
-            McpStatelessSyncServer ignoredMcpServerBean) {
+            HttpServletStreamableServerTransportProvider transportProvider,
+            McpSyncServer ignoredMcpServerBean) {
         ServletRegistrationBean<HttpServlet> registration =
-                new ServletRegistrationBean<>(transport, "/mcp", "/mcp/*");
+                new ServletRegistrationBean<>(transportProvider, "/mcp", "/mcp/*");
         registration.setName("mcpStreamableHttpServlet");
         registration.setLoadOnStartup(1);
         registration.setAsyncSupported(true);

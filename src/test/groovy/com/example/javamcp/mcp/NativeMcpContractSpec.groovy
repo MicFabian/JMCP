@@ -411,7 +411,7 @@ class NativeMcpContractSpec extends Specification {
     private HttpRequest jsonRequest(String payload, String sessionId) {
         def builder = HttpRequest.newBuilder(URI.create(url('/mcp')))
                 .header('Content-Type', 'application/json')
-                .header('Accept', 'application/json, text/event-stream')
+                .header('Accept', 'application/json')
                 .POST(HttpRequest.BodyPublishers.ofString(payload))
         if (sessionId != null && !sessionId.isBlank()) {
             builder.header('Mcp-Session-Id', sessionId)

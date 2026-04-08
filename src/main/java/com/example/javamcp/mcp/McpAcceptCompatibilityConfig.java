@@ -37,6 +37,16 @@ public class McpAcceptCompatibilityConfig {
         return registration;
     }
 
+    @Bean
+    public FilterRegistrationBean<OncePerRequestFilter> mcpImmediateFlushFilter() {
+        FilterRegistrationBean<OncePerRequestFilter> registration = new FilterRegistrationBean<>();
+        registration.setName("mcpImmediateFlushFilter");
+        registration.setFilter(new McpImmediateFlushFilter());
+        registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 20);
+        registration.addUrlPatterns("/mcp", "/mcp/*");
+        return registration;
+    }
+
     private static final class McpAcceptCompatibilityFilter extends OncePerRequestFilter {
 
         @Override
@@ -79,6 +89,32 @@ public class McpAcceptCompatibilityConfig {
                 return accept + ", " + MediaType.APPLICATION_JSON_VALUE;
             }
             return null;
+        }
+    }
+
+    private static final class McpImmediateFlushFilter extends OncePerRequestFilter {
+
+        @Override
+        protected boolean shouldNotFilter(HttpServletRequest request) {
+            return !HttpMethod.GET.matches(request.getMethod());
+        }
+
+        @Override
+        protected void doFilterInternal(HttpServletRequest request,
+                                        HttpServletResponse response,
+                                        FilterChain filterChain) throws ServletException, IOException {
+            filterChain.doFilter(request, response);
+
+            if (!request.isAsyncStarted()) {
+                return;
+            }
+
+            String contentType = response.getContentType();
+            if (contentType == null || !contentType.toLowerCase(Locale.ROOT).startsWith(MediaType.TEXT_EVENT_STREAM_VALUE)) {
+                return;
+            }
+
+            response.flushBuffer();
         }
     }
 

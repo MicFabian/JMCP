@@ -51,7 +51,6 @@ class NativeMcpEndpointSpec extends Specification {
         if (sessionId == null) {
             sessionId = initializeResponse.headers().firstValue('Mcp-Session-Id').orElse(null)
         }
-        assert sessionId != null && !sessionId.isBlank()
 
         def initializedNotification = [
                 jsonrpc: '2.0',

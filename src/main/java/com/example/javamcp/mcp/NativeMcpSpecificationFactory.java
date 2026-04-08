@@ -22,7 +22,7 @@ import com.example.javamcp.tools.MigrationAssistantService;
 import com.example.javamcp.tools.McpCatalogService;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
-import io.modelcontextprotocol.server.McpServerFeatures;
+import io.modelcontextprotocol.server.McpStatelessServerFeatures;
 import io.modelcontextprotocol.spec.McpSchema;
 
 import java.util.ArrayList;
@@ -72,7 +72,7 @@ public class NativeMcpSpecificationFactory {
         this.searchModeResolver = searchModeResolver;
     }
 
-    public List<McpServerFeatures.SyncToolSpecification> toolSpecifications() {
+    public List<McpStatelessServerFeatures.SyncToolSpecification> toolSpecifications() {
         return List.of(
                 javaDocsTool(),
                 resolveLibraryIdTool(),
@@ -88,13 +88,13 @@ public class NativeMcpSpecificationFactory {
         );
     }
 
-    public List<McpServerFeatures.SyncResourceSpecification> resourceSpecifications() {
+    public List<McpStatelessServerFeatures.SyncResourceSpecification> resourceSpecifications() {
         List<McpResourceDescriptor> resources = mcpCatalogService.listResources();
         if (resources.isEmpty()) {
             return List.of();
         }
 
-        List<McpServerFeatures.SyncResourceSpecification> specifications = new ArrayList<>();
+        List<McpStatelessServerFeatures.SyncResourceSpecification> specifications = new ArrayList<>();
         for (McpResourceDescriptor descriptor : resources) {
             McpSchema.Resource resource = McpSchema.Resource.builder()
                     .uri(descriptor.uri())
@@ -104,7 +104,7 @@ public class NativeMcpSpecificationFactory {
                     .mimeType(DEFAULT_RESOURCE_MIME_TYPE)
                     .build();
 
-            specifications.add(new McpServerFeatures.SyncResourceSpecification(
+            specifications.add(new McpStatelessServerFeatures.SyncResourceSpecification(
                     resource,
                     (exchange, request) -> {
                         try {
@@ -119,7 +119,7 @@ public class NativeMcpSpecificationFactory {
         return specifications;
     }
 
-    public List<McpServerFeatures.SyncResourceTemplateSpecification> resourceTemplateSpecifications() {
+    public List<McpStatelessServerFeatures.SyncResourceTemplateSpecification> resourceTemplateSpecifications() {
         McpSchema.ResourceTemplate template = McpSchema.ResourceTemplate.builder()
                 .uriTemplate("mcp://docs/{resourceId}")
                 .name("doc-by-id")
@@ -128,8 +128,8 @@ public class NativeMcpSpecificationFactory {
                 .mimeType(DEFAULT_RESOURCE_MIME_TYPE)
                 .build();
 
-        McpServerFeatures.SyncResourceTemplateSpecification specification =
-                new McpServerFeatures.SyncResourceTemplateSpecification(
+        McpStatelessServerFeatures.SyncResourceTemplateSpecification specification =
+                new McpStatelessServerFeatures.SyncResourceTemplateSpecification(
                         template,
                         (exchange, request) -> {
                             try {
@@ -142,13 +142,13 @@ public class NativeMcpSpecificationFactory {
         return List.of(specification);
     }
 
-    public List<McpServerFeatures.SyncPromptSpecification> promptSpecifications() {
+    public List<McpStatelessServerFeatures.SyncPromptSpecification> promptSpecifications() {
         List<PromptTemplate> templates = mcpCatalogService.listPrompts();
         if (templates.isEmpty()) {
             return List.of();
         }
 
-        List<McpServerFeatures.SyncPromptSpecification> specifications = new ArrayList<>();
+        List<McpStatelessServerFeatures.SyncPromptSpecification> specifications = new ArrayList<>();
         for (PromptTemplate template : templates) {
             McpSchema.Prompt prompt = new McpSchema.Prompt(
                     template.id(),
@@ -161,7 +161,7 @@ public class NativeMcpSpecificationFactory {
                     ))
             );
 
-            specifications.add(new McpServerFeatures.SyncPromptSpecification(
+            specifications.add(new McpStatelessServerFeatures.SyncPromptSpecification(
                     prompt,
                     (exchange, request) -> {
                         String variablesJson = stringArg(request.arguments(), "variablesJson");
@@ -179,7 +179,7 @@ public class NativeMcpSpecificationFactory {
         return specifications;
     }
 
-    private McpServerFeatures.SyncToolSpecification javaDocsTool() {
+    private McpStatelessServerFeatures.SyncToolSpecification javaDocsTool() {
         McpSchema.Tool tool = tool(
                 "java-docs",
                 "Java and Spring Docs",
@@ -197,7 +197,7 @@ public class NativeMcpSpecificationFactory {
                 readOnlyToolAnnotations()
         );
 
-        return new McpServerFeatures.SyncToolSpecification(tool, (exchange, request) -> safeToolCall(() -> {
+        return new McpStatelessServerFeatures.SyncToolSpecification(tool, (exchange, request) -> safeToolCall(() -> {
             Map<String, Object> args = request.arguments() == null ? Map.of() : request.arguments();
             String query = requireNonBlank(firstNonBlank(stringArg(args, "query"), stringArg(args, "q")), "query");
             String libraryName = stringArg(args, "libraryName");
@@ -259,7 +259,7 @@ public class NativeMcpSpecificationFactory {
         }));
     }
 
-    private McpServerFeatures.SyncToolSpecification resolveLibraryIdTool() {
+    private McpStatelessServerFeatures.SyncToolSpecification resolveLibraryIdTool() {
         McpSchema.Tool tool = tool(
                 "resolve-library-id",
                 "Resolve Library ID",
@@ -275,7 +275,7 @@ public class NativeMcpSpecificationFactory {
                 readOnlyToolAnnotations()
         );
 
-        return new McpServerFeatures.SyncToolSpecification(tool, (exchange, request) -> safeToolCall(() -> {
+        return new McpStatelessServerFeatures.SyncToolSpecification(tool, (exchange, request) -> safeToolCall(() -> {
             Map<String, Object> args = request.arguments() == null ? Map.of() : request.arguments();
             ResolveLibraryResponse response = libraryToolsService.resolveLibraryId(
                     stringArg(args, "query"),
@@ -287,7 +287,7 @@ public class NativeMcpSpecificationFactory {
         }));
     }
 
-    private McpServerFeatures.SyncToolSpecification queryDocsTool() {
+    private McpStatelessServerFeatures.SyncToolSpecification queryDocsTool() {
         McpSchema.Tool tool = tool(
                 "query-docs",
                 "Query Library Docs",
@@ -306,7 +306,7 @@ public class NativeMcpSpecificationFactory {
                 readOnlyToolAnnotations()
         );
 
-        return new McpServerFeatures.SyncToolSpecification(tool, (exchange, request) -> safeToolCall(() -> {
+        return new McpStatelessServerFeatures.SyncToolSpecification(tool, (exchange, request) -> safeToolCall(() -> {
             Map<String, Object> args = request.arguments() == null ? Map.of() : request.arguments();
             String libraryId = requireNonBlank(stringArg(args, "libraryId"), "libraryId");
 
@@ -323,7 +323,7 @@ public class NativeMcpSpecificationFactory {
         }));
     }
 
-    private McpServerFeatures.SyncToolSpecification searchTool() {
+    private McpStatelessServerFeatures.SyncToolSpecification searchTool() {
         McpSchema.Tool tool = tool(
                 "search",
                 "Search Indexed Java Content",
@@ -342,7 +342,7 @@ public class NativeMcpSpecificationFactory {
                 readOnlyToolAnnotations()
         );
 
-        return new McpServerFeatures.SyncToolSpecification(tool, (exchange, request) -> safeToolCall(() -> {
+        return new McpStatelessServerFeatures.SyncToolSpecification(tool, (exchange, request) -> safeToolCall(() -> {
             Map<String, Object> args = request.arguments() == null ? Map.of() : request.arguments();
             String query = firstNonBlank(stringArg(args, "q"), stringArg(args, "query"));
 
@@ -359,7 +359,7 @@ public class NativeMcpSpecificationFactory {
         }));
     }
 
-    private McpServerFeatures.SyncToolSpecification analyzeTool() {
+    private McpStatelessServerFeatures.SyncToolSpecification analyzeTool() {
         McpSchema.Tool tool = tool(
                 "analyze",
                 "Analyze Java Code",
@@ -373,14 +373,14 @@ public class NativeMcpSpecificationFactory {
                 readOnlyToolAnnotations()
         );
 
-        return new McpServerFeatures.SyncToolSpecification(tool, (exchange, request) -> safeToolCall(() -> {
+        return new McpStatelessServerFeatures.SyncToolSpecification(tool, (exchange, request) -> safeToolCall(() -> {
             Map<String, Object> args = request.arguments() == null ? Map.of() : request.arguments();
             String code = requireNonBlank(stringArg(args, "code"), "code");
             return success(ruleEngineService.analyze(stringArg(args, "fileName"), code));
         }));
     }
 
-    private McpServerFeatures.SyncToolSpecification astTool() {
+    private McpStatelessServerFeatures.SyncToolSpecification astTool() {
         McpSchema.Tool tool = tool(
                 "ast",
                 "Parse Java AST",
@@ -391,14 +391,14 @@ public class NativeMcpSpecificationFactory {
                 readOnlyToolAnnotations()
         );
 
-        return new McpServerFeatures.SyncToolSpecification(tool, (exchange, request) -> safeToolCall(() -> {
+        return new McpStatelessServerFeatures.SyncToolSpecification(tool, (exchange, request) -> safeToolCall(() -> {
             Map<String, Object> args = request.arguments() == null ? Map.of() : request.arguments();
             String code = requireNonBlank(stringArg(args, "code"), "code");
             return success(astService.parse(code));
         }));
     }
 
-    private McpServerFeatures.SyncToolSpecification symbolsTool() {
+    private McpStatelessServerFeatures.SyncToolSpecification symbolsTool() {
         McpSchema.Tool tool = tool(
                 "symbols",
                 "Extract Java Symbols",
@@ -409,14 +409,14 @@ public class NativeMcpSpecificationFactory {
                 readOnlyToolAnnotations()
         );
 
-        return new McpServerFeatures.SyncToolSpecification(tool, (exchange, request) -> safeToolCall(() -> {
+        return new McpStatelessServerFeatures.SyncToolSpecification(tool, (exchange, request) -> safeToolCall(() -> {
             Map<String, Object> args = request.arguments() == null ? Map.of() : request.arguments();
             String code = requireNonBlank(stringArg(args, "code"), "code");
             return success(symbolGraphService.extract(code));
         }));
     }
 
-    private McpServerFeatures.SyncToolSpecification migrationAssistantTool() {
+    private McpStatelessServerFeatures.SyncToolSpecification migrationAssistantTool() {
         McpSchema.Tool tool = tool(
                 "migration-assistant",
                 "Java Migration Assistant",
@@ -434,7 +434,7 @@ public class NativeMcpSpecificationFactory {
                 readOnlyToolAnnotations()
         );
 
-        return new McpServerFeatures.SyncToolSpecification(tool, (exchange, request) -> safeToolCall(() -> {
+        return new McpStatelessServerFeatures.SyncToolSpecification(tool, (exchange, request) -> safeToolCall(() -> {
             Map<String, Object> args = request.arguments() == null ? Map.of() : request.arguments();
             MigrationAssistantRequest payload = new MigrationAssistantRequest(
                     stringArg(args, "buildFile"),
@@ -448,7 +448,7 @@ public class NativeMcpSpecificationFactory {
         }));
     }
 
-    private McpServerFeatures.SyncToolSpecification indexStatsTool() {
+    private McpStatelessServerFeatures.SyncToolSpecification indexStatsTool() {
         McpSchema.Tool tool = tool(
                 "index-stats",
                 "Index Stats",
@@ -459,12 +459,12 @@ public class NativeMcpSpecificationFactory {
                 readOnlyToolAnnotations()
         );
 
-        return new McpServerFeatures.SyncToolSpecification(tool, (exchange, request) ->
+        return new McpStatelessServerFeatures.SyncToolSpecification(tool, (exchange, request) ->
                 safeToolCall(() -> success(indexLifecycleService.currentStats()))
         );
     }
 
-    private McpServerFeatures.SyncToolSpecification rebuildIndexTool() {
+    private McpStatelessServerFeatures.SyncToolSpecification rebuildIndexTool() {
         McpSchema.Tool tool = tool(
                 "index-rebuild",
                 "Rebuild Index",
@@ -475,12 +475,12 @@ public class NativeMcpSpecificationFactory {
                 stateChangingToolAnnotations()
         );
 
-        return new McpServerFeatures.SyncToolSpecification(tool, (exchange, request) ->
+        return new McpStatelessServerFeatures.SyncToolSpecification(tool, (exchange, request) ->
                 safeToolCall(() -> success(indexLifecycleService.rebuildIndex()))
         );
     }
 
-    private McpServerFeatures.SyncToolSpecification manifestTool() {
+    private McpStatelessServerFeatures.SyncToolSpecification manifestTool() {
         McpSchema.Tool tool = tool(
                 "manifest",
                 "MCP Manifest",
@@ -491,7 +491,7 @@ public class NativeMcpSpecificationFactory {
                 readOnlyToolAnnotations()
         );
 
-        return new McpServerFeatures.SyncToolSpecification(tool, (exchange, request) ->
+        return new McpStatelessServerFeatures.SyncToolSpecification(tool, (exchange, request) ->
                 safeToolCall(() -> success(mcpCatalogService.manifest()))
         );
     }

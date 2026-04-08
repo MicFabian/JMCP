@@ -29,7 +29,6 @@ class NativeMcpContractSpec extends Specification {
         def session = openInitializedSession()
 
         then:
-        session.id() != null
         session.initializeResult().protocolVersion == '2025-06-18'
         session.initializeResult().serverInfo.name == 'java-mcp'
         session.initializeResult().capabilities.tools.listChanged == true
@@ -367,7 +366,6 @@ class NativeMcpContractSpec extends Specification {
         def sessionId = initializeResponse.headers().firstValue('Mcp-Session-Id').orElse(
                 initializeResponse.headers().firstValue('mcp-session-id').orElse(null)
         )
-        assert sessionId != null && !sessionId.isBlank()
 
         def initializedNotification = [
                 jsonrpc: '2.0',
